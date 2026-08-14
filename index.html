@@ -1,0 +1,1607 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ShuttleUp — Badminton Attendance</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{--green:#1A3D2B;--lime:#C8F542;--white:#F5F5F0;--amber:#F5A623;--red:#E8453C;--dark:#111;--mid:#555;--border:#D4D4CC;--surface:#F0F0EB;}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Inter',sans-serif;background:var(--white);color:var(--dark);min-height:100vh;}
+nav{background:var(--green);padding:0 20px;display:flex;align-items:center;justify-content:space-between;height:58px;position:sticky;top:0;z-index:100;}
+.logo{font-family:'Syne',sans-serif;font-weight:800;font-size:1.25rem;color:var(--lime);letter-spacing:-0.02em;}
+.logo span{color:var(--white);}
+.nav-tabs{display:flex;gap:3px;}
+.nav-tab{padding:6px 12px;border-radius:20px;border:none;background:transparent;color:rgba(255,255,255,0.55);font-family:'Inter',sans-serif;font-size:0.82rem;font-weight:500;cursor:pointer;transition:all 0.2s;}
+.nav-tab.active{background:var(--lime);color:var(--dark);}
+.nav-tab:hover:not(.active){color:white;}
+.view{display:none;padding:20px 14px;max-width:860px;margin:0 auto;}
+.view.active{display:block;}
+.page-hdr{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:20px;}
+.page-hdr h1{font-family:'Syne',sans-serif;font-size:1.6rem;font-weight:800;color:var(--green);letter-spacing:-0.03em;}
+.page-hdr p{color:var(--mid);font-size:0.85rem;margin-top:3px;}
+.card{background:#fff;border:1.5px solid var(--border);border-radius:14px;overflow:hidden;margin-bottom:18px;box-shadow:0 2px 6px rgba(0,0,0,0.05);}
+.card-hdr{background:var(--green);padding:14px 18px;display:flex;align-items:flex-start;justify-content:space-between;gap:10px;}
+.card-hdr h2{font-family:'Syne',sans-serif;font-size:1.1rem;font-weight:800;color:var(--lime);letter-spacing:-0.02em;}
+.card-hdr p{color:rgba(255,255,255,0.65);font-size:0.8rem;margin-top:2px;}
+.card-body{padding:14px 18px;}
+.fill-bar{height:7px;background:#E8E8E2;}
+.fill-bar-inner{height:100%;background:linear-gradient(90deg,var(--lime),#A8D830);transition:width 0.5s cubic-bezier(.22,1,.36,1);}
+.stats-row{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:14px;}
+.stat-box{background:var(--surface);border-radius:9px;padding:11px;text-align:center;}
+.stat-num{font-family:'Syne',sans-serif;font-size:1.4rem;font-weight:800;color:var(--green);line-height:1;}
+.stat-lbl{font-size:0.7rem;color:var(--mid);margin-top:3px;text-transform:uppercase;letter-spacing:0.05em;}
+.sec-lbl{font-size:0.75rem;font-weight:600;text-transform:uppercase;letter-spacing:0.07em;color:var(--mid);margin-bottom:7px;}
+.chips{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:12px;}
+.chip{display:flex;align-items:center;gap:5px;border-radius:20px;padding:4px 9px 4px 4px;font-size:0.8rem;font-weight:500;border:1px solid var(--border);background:var(--surface);}
+.chip.going{border-color:#C8F542;background:#F0FBDA;}
+.chip.maybe{border-color:var(--amber);background:#FFF8ED;}
+.chip.notgoing{border-color:#E8453C;background:#FEF0EF;opacity:.7;}
+.av{width:20px;height:20px;border-radius:50%;background:var(--green);color:var(--lime);font-size:0.6rem;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;text-transform:uppercase;}
+.chip-x{background:none;border:none;cursor:pointer;color:#aaa;font-size:0.95rem;line-height:1;padding:0 0 0 2px;}
+.chip-x:hover{color:var(--red);}
+.badge{padding:3px 9px;border-radius:20px;font-size:0.72rem;font-weight:600;text-transform:uppercase;letter-spacing:0.05em;}
+.b-open{background:var(--lime);color:var(--dark);}
+.b-full{background:var(--amber);color:var(--dark);}
+.b-closed{background:#666;color:white;}
+.actions{display:flex;gap:7px;flex-wrap:wrap;margin-top:14px;padding-top:12px;border-top:1px solid var(--border);}
+.btn{display:inline-flex;align-items:center;gap:5px;padding:8px 14px;border-radius:8px;border:1.5px solid transparent;font-family:'Inter',sans-serif;font-size:0.81rem;font-weight:600;cursor:pointer;transition:all .15s;text-decoration:none;white-space:nowrap;}
+.btn-green{background:var(--green);color:white;border-color:var(--green);}
+.btn-green:hover{background:#244f38;}
+.btn-lime{background:var(--lime);color:var(--dark);border-color:var(--lime);}
+.btn-lime:hover{background:#b5e030;}
+.btn-amber{background:var(--amber);color:var(--dark);border-color:var(--amber);}
+.btn-amber:hover{background:#e09000;}
+.btn-ghost{background:transparent;color:var(--dark);border-color:var(--border);}
+.btn-ghost:hover{border-color:#999;}
+.btn-wa{background:#25D366;color:white;border-color:#25D366;}
+.btn-wa:hover{background:#1ebe5a;}
+.btn-red{background:transparent;color:var(--red);border-color:#f5a9a5;}
+.btn-red:hover{background:#FEF0EF;}
+.btn-sm{padding:5px 10px;font-size:0.76rem;}
+.overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:200;align-items:flex-end;justify-content:center;}
+.overlay.open{display:flex;}
+@media(min-width:580px){.overlay{align-items:center;}}
+.modal{background:white;border-radius:18px 18px 0 0;padding:22px;width:100%;max-width:460px;max-height:92vh;overflow-y:auto;}
+@media(min-width:580px){.modal{border-radius:14px;}}
+.modal h3{font-family:'Syne',sans-serif;font-size:1.1rem;font-weight:800;color:var(--green);margin-bottom:16px;}
+.frow{margin-bottom:13px;}
+.frow label{display:block;font-size:0.76rem;font-weight:600;color:var(--mid);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:4px;}
+.frow input,.frow select,.frow textarea{width:100%;padding:9px 11px;border:1.5px solid var(--border);border-radius:8px;font-family:'Inter',sans-serif;font-size:0.88rem;background:var(--white);color:var(--dark);outline:none;transition:border-color .15s;}
+.frow input:focus,.frow select:focus,.frow textarea:focus{border-color:var(--green);}
+.frow textarea{resize:vertical;min-height:65px;}
+.fgrid{display:grid;grid-template-columns:1fr 1fr;gap:11px;}
+.modal-btns{display:flex;gap:8px;justify-content:flex-end;margin-top:18px;}
+.fin-card{background:#fff;border:1.5px solid var(--border);border-radius:14px;padding:18px;margin-bottom:16px;}
+.fin-card h3{font-family:'Syne',sans-serif;font-size:0.95rem;font-weight:800;color:var(--green);margin-bottom:13px;}
+.fin-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:9px;margin-bottom:13px;}
+.fin-stat{background:var(--surface);border-radius:9px;padding:12px;}
+.fin-stat .num{font-family:'Syne',sans-serif;font-size:1.35rem;font-weight:800;color:var(--green);}
+.fin-stat .lbl{font-size:0.72rem;color:var(--mid);margin-top:2px;}
+.tbl{width:100%;border-collapse:collapse;font-size:0.83rem;}
+.tbl th{text-align:left;font-size:0.7rem;font-weight:600;text-transform:uppercase;letter-spacing:0.06em;color:var(--mid);padding:0 9px 9px;border-bottom:1px solid var(--border);}
+.tbl td{padding:9px;border-bottom:1px solid #F0F0EB;vertical-align:middle;}
+.tbl tr:last-child td{border-bottom:none;}
+.tbl tr:hover td{background:var(--surface);}
+.rsvp-hero{background:var(--green);border-radius:14px;padding:22px 18px;margin-bottom:18px;position:relative;overflow:hidden;}
+.rsvp-hero::before{content:'🏸';position:absolute;right:18px;top:50%;transform:translateY(-50%);font-size:3.5rem;opacity:.12;}
+.rsvp-hero h1{font-family:'Syne',sans-serif;font-size:1.4rem;font-weight:800;color:var(--lime);letter-spacing:-0.02em;}
+.rsvp-hero p{color:rgba(255,255,255,.7);font-size:0.87rem;margin-top:3px;}
+.rsvp-card{background:white;border:1.5px solid var(--border);border-radius:14px;padding:18px;margin-bottom:14px;}
+.rsvp-card h3{font-family:'Syne',sans-serif;font-size:0.95rem;font-weight:800;color:var(--green);margin-bottom:13px;}
+.rsvp-opts{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;margin-bottom:14px;}
+.rsvp-opt{padding:11px 7px;border-radius:9px;border:2px solid var(--border);text-align:center;cursor:pointer;transition:all .15s;}
+.rsvp-opt:hover{border-color:#999;}
+.rsvp-opt.sel-going{border-color:var(--lime);background:#F0FBDA;}
+.rsvp-opt.sel-maybe{border-color:var(--amber);background:#FFF8ED;}
+.rsvp-opt.sel-no{border-color:var(--red);background:#FEF0EF;}
+.rsvp-opt .emo{font-size:1.4rem;}
+.rsvp-opt .lbl{font-size:0.75rem;font-weight:600;margin-top:3px;color:var(--mid);}
+.mtype{padding:2px 7px;border-radius:10px;font-size:0.68rem;font-weight:700;text-transform:uppercase;letter-spacing:0.04em;}
+.mtype-perm{background:#E8F5E9;color:#2E7D32;}
+.mtype-cas{background:#FFF3E0;color:#E65100;}
+.alert-banner{background:#FFF8E1;border:1.5px solid var(--amber);border-radius:10px;padding:14px 16px;margin-bottom:16px;display:flex;align-items:flex-start;gap:10px;font-size:0.84rem;line-height:1.5;}
+.alert-banner .ico{font-size:1.3rem;flex-shrink:0;}
+.bal-pos{color:#2E7D32;font-weight:700;}
+.bal-neg{color:var(--red);font-weight:700;}
+.bal-zero{color:var(--mid);font-weight:600;}
+.empty{text-align:center;padding:36px 18px;color:var(--mid);}
+.empty .ico{font-size:2.8rem;margin-bottom:9px;}
+.empty h3{font-family:'Syne',sans-serif;font-size:0.95rem;color:var(--green);}
+.empty p{font-size:0.82rem;margin-top:3px;}
+.toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%) translateY(110px);background:var(--dark);color:white;padding:9px 18px;border-radius:28px;font-size:0.82rem;font-weight:500;z-index:999;transition:transform .3s cubic-bezier(.22,1,.36,1);white-space:nowrap;}
+.toast.show{transform:translateX(-50%) translateY(0);}
+.pill-row{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:7px;}
+.mpill{padding:4px 11px;border-radius:20px;border:1.5px solid var(--border);font-size:0.78rem;cursor:pointer;transition:all .15s;user-select:none;display:inline-flex;align-items:center;gap:5px;}
+.mpill.sel{background:var(--lime);border-color:#A8D030;font-weight:600;}
+.mpill:hover:not(.sel){border-color:#999;}
+.inline-num{width:76px;padding:5px 7px;border:1.5px solid var(--border);border-radius:6px;font-size:0.82rem;outline:none;font-family:'Inter',sans-serif;}
+.inline-num:focus{border-color:var(--green);}
+.wa-wrap{background:#ECE5DD;border-radius:11px;padding:14px;margin-bottom:11px;border:1px solid #D4CCC5;}
+.wa-bubble{background:white;border-radius:7px 7px 7px 2px;padding:9px 11px;max-width:92%;display:inline-block;box-shadow:0 1px 2px rgba(0,0,0,.1);white-space:pre-wrap;font-family:'Segoe UI',sans-serif;font-size:0.82rem;line-height:1.55;}
+@media(max-width:460px){.stats-row{gap:7px;}.stat-num{font-size:1.15rem;}.actions{gap:5px;}.btn{padding:7px 10px;font-size:0.78rem;}}
+
+/* ── TOURNAMENT ─────────────────────────────────────────────── */
+.t-hero{background:linear-gradient(135deg,#1A3D2B 60%,#2a5c3f);border-radius:14px;padding:22px 18px;margin-bottom:18px;color:white;position:relative;overflow:hidden;}
+.t-hero::after{content:'🏆';position:absolute;right:16px;top:50%;transform:translateY(-50%);font-size:3.8rem;opacity:.13;}
+.t-hero h1{font-family:'Syne',sans-serif;font-size:1.5rem;font-weight:800;color:var(--lime);letter-spacing:-.03em;}
+.t-hero p{color:rgba(255,255,255,.7);font-size:.86rem;margin-top:4px;}
+.t-card{background:#fff;border:1.5px solid var(--border);border-radius:14px;margin-bottom:16px;overflow:hidden;}
+.t-card-hdr{padding:12px 16px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border);background:var(--surface);}
+.t-card-hdr h3{font-family:'Syne',sans-serif;font-size:.92rem;font-weight:800;color:var(--green);}
+.t-card-body{padding:14px 16px;}
+.team-row{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid #F0F0EB;}
+.team-row:last-child{border-bottom:none;}
+.team-num{width:26px;height:26px;border-radius:50%;background:var(--green);color:var(--lime);font-size:.72rem;font-weight:800;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.team-info{flex:1;min-width:0;}
+.team-name{font-weight:600;font-size:.88rem;}
+.team-players{font-size:.75rem;color:var(--mid);margin-top:1px;}
+/* match card */
+.match-card{border:1.5px solid var(--border);border-radius:10px;margin-bottom:10px;overflow:hidden;}
+.match-hdr{background:var(--surface);padding:7px 12px;font-size:.74rem;font-weight:600;color:var(--mid);text-transform:uppercase;letter-spacing:.05em;display:flex;justify-content:space-between;align-items:center;}
+.match-body{padding:10px 12px;}
+.match-teams{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:8px;}
+.match-team{text-align:center;}
+.match-team-name{font-weight:700;font-size:.87rem;color:var(--dark);}
+.match-team-players{font-size:.72rem;color:var(--mid);margin-top:2px;}
+.match-vs{font-family:'Syne',sans-serif;font-weight:800;font-size:.9rem;color:var(--mid);}
+.match-score{display:flex;align-items:center;justify-content:center;gap:8px;margin-top:10px;}
+.score-input{width:52px;padding:6px;border:2px solid var(--border);border-radius:8px;font-family:'Syne',sans-serif;font-size:1.1rem;font-weight:800;text-align:center;outline:none;color:var(--dark);}
+.score-input:focus{border-color:var(--green);}
+.score-sep{font-family:'Syne',sans-serif;font-weight:800;font-size:1rem;color:var(--mid);}
+.score-done{background:var(--green);border:none;border-radius:6px;color:var(--lime);font-size:.75rem;font-weight:700;padding:5px 10px;cursor:pointer;margin-left:4px;}
+.score-done:hover{background:#244f38;}
+.match-result{text-align:center;margin-top:8px;padding:5px 10px;border-radius:6px;font-size:.8rem;font-weight:600;}
+.res-win1{background:#F0FBDA;color:#2E7D32;}
+.res-win2{background:#FEF0EF;color:var(--red);}
+.res-draw{background:#FFF8ED;color:#b35c00;}
+/* standings */
+.standing-row{display:grid;grid-template-columns:28px 1fr 40px 40px 60px 28px;gap:6px;align-items:center;padding:8px 4px;border-bottom:1px solid #F0F0EB;font-size:.83rem;}
+.standing-row:last-child{border-bottom:none;}
+.standing-row.hdr{font-size:.7rem;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--mid);padding-bottom:6px;}
+.rank-badge{width:24px;height:24px;border-radius:50%;background:var(--surface);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:.78rem;color:var(--mid);}
+.rank-badge.r1{background:#FFD700;color:#7a6000;}
+.rank-badge.r2{background:#C0C0C0;color:#555;}
+.rank-badge.r3{background:#CD7F32;color:#fff;}
+.rank-badge.r4{background:var(--green);color:var(--lime);}
+/* KO bracket */
+.bracket{display:flex;gap:24px;overflow-x:auto;padding-bottom:8px;}
+.bracket-col{display:flex;flex-direction:column;gap:12px;min-width:200px;}
+.bracket-col-title{font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--mid);margin-bottom:4px;text-align:center;}
+.bracket-match{border:1.5px solid var(--border);border-radius:10px;overflow:hidden;}
+.bracket-team{padding:8px 10px;font-size:.82rem;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--border);}
+.bracket-team:last-child{border-bottom:none;}
+.bracket-team.winner{background:#F0FBDA;font-weight:700;color:#2E7D32;}
+.bracket-team.tbd{color:#bbb;font-style:italic;}
+.bracket-score{font-family:'Syne',sans-serif;font-weight:800;font-size:.88rem;color:var(--green);}
+/* phase tabs */
+.phase-tabs{display:flex;gap:6px;margin-bottom:16px;flex-wrap:wrap;}
+.phase-tab{padding:6px 14px;border-radius:20px;border:1.5px solid var(--border);background:transparent;font-family:'Inter',sans-serif;font-size:.8rem;font-weight:600;cursor:pointer;color:var(--mid);transition:all .15s;}
+.phase-tab.active{background:var(--green);color:var(--lime);border-color:var(--green);}
+/* winner banner */
+.winner-banner{background:linear-gradient(135deg,#FFD700,#FFA000);border-radius:14px;padding:22px;text-align:center;margin-bottom:18px;}
+.winner-banner .trophy{font-size:3rem;margin-bottom:8px;}
+.winner-banner h2{font-family:'Syne',sans-serif;font-size:1.4rem;font-weight:800;color:#5a3e00;}
+.winner-banner p{color:#7a5500;font-size:.9rem;margin-top:4px;}
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="logo">Shuttle<span>Up</span></div>
+  <div class="nav-tabs">
+    <button class="nav-tab active" onclick="showView('sessions',this)">Sessions</button>
+    <button class="nav-tab" onclick="showView('rsvp',this)">RSVP</button>
+    <button class="nav-tab" onclick="showView('finance',this)">Finance</button>
+    <button class="nav-tab" onclick="showView('tournament',this)">🏆</button>
+  </div>
+</nav>
+
+<div id="view-sessions" class="view active">
+  <div class="page-hdr">
+    <div><h1>Sessions</h1><p>Manage weekly sessions and attendance</p></div>
+    <button class="btn btn-lime" onclick="openNewSession()">＋ New</button>
+  </div>
+  <div id="sessions-list"></div>
+</div>
+
+<div id="view-rsvp" class="view">
+  <div id="rsvp-content"></div>
+</div>
+
+<div id="view-finance" class="view">
+  <div class="page-hdr">
+    <div><h1>Finance</h1><p>Quarterly fees, costs and member balances</p></div>
+  </div>
+  <div id="finance-content"></div>
+</div>
+
+
+<div id="view-tournament" class="view">
+  <div id="tournament-content"></div>
+</div>
+
+<!-- NEW SESSION MODAL -->
+<div class="overlay" id="m-session">
+  <div class="modal">
+    <h3>📅 New Session</h3>
+    <div class="fgrid">
+      <div class="frow"><label>Date</label><input type="date" id="f-date"></div>
+      <div class="frow"><label>Time</label><input type="time" id="f-time" value="19:00"></div>
+    </div>
+    <div class="frow"><label>Venue</label><input type="text" id="f-venue" placeholder="e.g. Leisure Centre Court 2"></div>
+    <div class="frow"><label>Max Players</label><input type="number" id="f-max" value="12" min="2" max="40"></div>
+    <div class="frow"><label>Notes (optional)</label><textarea id="f-notes" placeholder="e.g. Bring extra shuttles"></textarea></div>
+    <div class="modal-btns">
+      <button class="btn btn-ghost" onclick="closeModal('m-session')">Cancel</button>
+      <button class="btn btn-lime" onclick="createSession()">Create</button>
+    </div>
+  </div>
+</div>
+
+<!-- ADD PLAYER MODAL -->
+<div class="overlay" id="m-player">
+  <div class="modal">
+    <h3>➕ Add Player</h3>
+    <div class="frow"><label>Select members</label><div class="pill-row" id="mpills"></div></div>
+    <div class="frow">
+      <label>Or add a guest</label>
+      <div style="display:flex;gap:7px"><input type="text" id="guest-in" placeholder="Guest name" style="flex:1"><button class="btn btn-ghost btn-sm" onclick="addGuest()">Add</button></div>
+    </div>
+    <div class="frow"><label>Status</label>
+      <select id="p-status">
+        <option value="going">✅ Going</option>
+        <option value="maybe">🤔 Maybe</option>
+        <option value="notgoing">❌ Not going</option>
+      </select>
+    </div>
+    <div class="modal-btns">
+      <button class="btn btn-ghost" onclick="closeModal('m-player')">Cancel</button>
+      <button class="btn btn-lime" onclick="confirmPlayers()">Add to Session</button>
+    </div>
+  </div>
+</div>
+
+<!-- WA MODAL -->
+<div class="overlay" id="m-wa">
+  <div class="modal">
+    <h3>📲 WhatsApp Message</h3>
+    <p style="font-size:0.82rem;color:var(--mid);margin-bottom:12px">Share this to your group</p>
+    <div class="wa-wrap"><div class="wa-bubble" id="wa-text"></div></div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <button class="btn btn-ghost" onclick="copyWA()">📋 Copy</button>
+      <a class="btn btn-wa" id="wa-link" target="_blank"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg> Open WhatsApp</a>
+    </div>
+    <div class="modal-btns"><button class="btn btn-ghost" onclick="closeModal('m-wa')">Close</button></div>
+  </div>
+</div>
+
+<!-- ADD MEMBER MODAL -->
+<div class="overlay" id="m-member">
+  <div class="modal">
+    <h3>👤 Add Member</h3>
+    <div class="frow"><label>Name</label><input type="text" id="m-name" placeholder="Full name"></div>
+    <div class="frow">
+      <label>Type</label>
+      <select id="m-type" onchange="toggleFeeRow()">
+        <option value="permanent">Permanent — quarterly fee</option>
+        <option value="casual">Casual — A$10 per session</option>
+      </select>
+    </div>
+    <div id="m-fee-row" class="frow"><label>Quarterly Fee (A$)</label><input type="number" id="m-fee" value="60" min="0" step="5"></div>
+    <div class="modal-btns">
+      <button class="btn btn-ghost" onclick="closeModal('m-member')">Cancel</button>
+      <button class="btn btn-lime" onclick="addMember()">Add Member</button>
+    </div>
+  </div>
+</div>
+
+<!-- COLLECT FEES MODAL -->
+<div class="overlay" id="m-collect">
+  <div class="modal">
+    <h3>💰 Collect Quarterly Fees</h3>
+    <p style="font-size:0.85rem;color:var(--mid);margin-bottom:16px">Record payments from permanent members for <strong id="collect-q-label"></strong>.</p>
+    <div id="collect-list"></div>
+    <div class="modal-btns">
+      <button class="btn btn-ghost" onclick="closeModal('m-collect')">Close</button>
+      <button class="btn btn-lime" onclick="markAllPaid()">Mark All Paid</button>
+    </div>
+  </div>
+</div>
+
+<!-- SHUTTLE COST MODAL -->
+<div class="overlay" id="m-shuttle">
+  <div class="modal">
+    <h3>🪶 Add Shuttle Cost</h3>
+    <div class="frow"><label>Date</label><input type="date" id="sc-date"></div>
+    <div class="frow"><label>Description</label><input type="text" id="sc-desc" placeholder="e.g. 6× RSL feather tubes"></div>
+    <div class="frow"><label>Amount (A$)</label><input type="number" id="sc-amount" placeholder="0.00" min="0" step="0.50"></div>
+    <p style="font-size:0.78rem;color:var(--mid);margin-bottom:6px">Split equally across all permanent members.</p>
+    <div class="modal-btns">
+      <button class="btn btn-ghost" onclick="closeModal('m-shuttle')">Cancel</button>
+      <button class="btn btn-lime" onclick="saveShuttle()">Add</button>
+    </div>
+  </div>
+</div>
+
+
+<!-- NEW TOURNAMENT MODAL -->
+<div class="overlay" id="m-tournament">
+  <div class="modal">
+    <h3>🏆 New Tournament</h3>
+    <div class="frow"><label>Tournament Name</label><input type="text" id="t-name" placeholder="e.g. Sunday Smash Cup"></div>
+    <div class="frow"><label>Date</label><input type="date" id="t-date"></div>
+    <div class="modal-btns">
+      <button class="btn btn-ghost" onclick="closeModal('m-tournament')">Cancel</button>
+      <button class="btn btn-lime" onclick="createTournament()">Create</button>
+    </div>
+  </div>
+</div>
+
+<!-- ADD TEAM MODAL -->
+<div class="overlay" id="m-team">
+  <div class="modal">
+    <h3>👥 Add Team</h3>
+    <div class="frow"><label>Team Name</label><input type="text" id="tm-name" placeholder="e.g. Smash Bros"></div>
+    <div class="frow"><label>Player 1</label><input type="text" id="tm-p1" placeholder="Player name"></div>
+    <div class="frow"><label>Player 2</label><input type="text" id="tm-p2" placeholder="Player name"></div>
+    <div class="modal-btns">
+      <button class="btn btn-ghost" onclick="closeModal('m-team')">Cancel</button>
+      <button class="btn btn-lime" onclick="addTeam()">Add Team</button>
+    </div>
+  </div>
+</div>
+
+<!-- CONFIRM MODAL -->
+<div class="overlay" id="m-confirm">
+  <div class="modal" style="max-width:340px">
+    <h3 id="confirm-title">Are you sure?</h3>
+    <p id="confirm-msg" style="font-size:0.88rem;color:var(--mid);margin-bottom:20px"></p>
+    <div class="modal-btns">
+      <button class="btn btn-ghost" onclick="closeModal('m-confirm')">Cancel</button>
+      <button class="btn btn-red" id="confirm-ok">Yes, Delete</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ============================================================
+// CONSTANTS & STATE
+// ============================================================
+const CASUAL_FEE = 10;
+
+function defaultState() {
+  return {
+    sessions: [],
+    members: [
+      {id:1, name:'Alex Chen',   type:'permanent', fee:60},
+      {id:2, name:'Sam Patel',   type:'permanent', fee:60},
+      {id:3, name:'Jordan Lee',  type:'permanent', fee:60},
+      {id:4, name:'Priya Singh', type:'permanent', fee:60},
+      {id:5, name:'Mei Zhang',   type:'permanent', fee:60},
+    ],
+    feePayments: [],   // {id, memberId, quarter, amount, date}
+    sessionCosts: {},  // {sessionId: number}
+    shuttleCosts: [],  // {id, date, month, desc, amount}
+    financeQuarter: currentQuarter(),
+    tournaments: [],
+  };
+}
+
+let S = null;
+try { S = JSON.parse(localStorage.getItem('shuttleup_v4') || 'null'); } catch(e){}
+if (!S) S = defaultState();
+
+// Ensure arrays exist for older saves
+if (!S.feePayments) S.feePayments = [];
+if (!S.sessionCosts) S.sessionCosts = {};
+if (!S.shuttleCosts) S.shuttleCosts = [];
+if (!S.tournaments) S.tournaments = [];
+
+// Seed sample session
+if (!S.sessions.length) {
+  const nd = nextWeekday(1);
+  S.sessions.push({
+    id: 1000,
+    date: nd, time: '19:00',
+    venue: 'Leisure Centre Court 2 & 3',
+    maxPlayers: 12,
+    notes: 'Bring extra shuttles!',
+    status: 'open',
+    players: [
+      {id:1, name:'Alex Chen',   type:'permanent', status:'going',    member:true},
+      {id:2, name:'Sam Patel',   type:'permanent', status:'going',    member:true},
+      {id:4, name:'Priya Singh', type:'permanent', status:'maybe',    member:true},
+      {id:3, name:'Jordan Lee',  type:'permanent', status:'notgoing', member:true},
+    ]
+  });
+  save();
+}
+
+function save() { localStorage.setItem('shuttleup_v4', JSON.stringify(S)); }
+
+// ============================================================
+// DATE / QUARTER HELPERS
+// ============================================================
+function nextWeekday(dow) {
+  const d = new Date();
+  let diff = dow - d.getDay();
+  if (diff <= 0) diff += 7;
+  d.setDate(d.getDate() + diff);
+  return d.toISOString().split('T')[0];
+}
+
+function fmtDate(ds) {
+  return new Date(ds + 'T12:00').toLocaleDateString('en-AU', {weekday:'long', day:'numeric', month:'long'});
+}
+function fmtShort(ds) {
+  return new Date(ds + 'T12:00').toLocaleDateString('en-AU', {day:'numeric', month:'short'});
+}
+
+function currentQuarter() {
+  const d = new Date();
+  return d.getFullYear() + '-Q' + Math.ceil((d.getMonth()+1)/3);
+}
+function quarterLabel(q) {
+  const [yr, qp] = q.split('-'); const qn = +qp.slice(1);
+  const s = ['Jan','Apr','Jul','Oct'][qn-1], e = ['Mar','Jun','Sep','Dec'][qn-1];
+  return 'Q'+qn+' '+s+'–'+e+' '+yr;
+}
+function quarterMonths(q) {
+  const [yr, qp] = q.split('-'); const qn = +qp.slice(1);
+  const sm = (qn-1)*3+1;
+  return [0,1,2].map(i => yr+'-'+String(sm+i).padStart(2,'0'));
+}
+function dateToQuarter(ds) {
+  const d = new Date(ds + 'T12:00');
+  return d.getFullYear() + '-Q' + Math.ceil((d.getMonth()+1)/3);
+}
+function availableQuarters() {
+  const now = new Date(); const result = [];
+  for (let i = -3; i <= 1; i++) {
+    const d = new Date(now.getFullYear(), now.getMonth() + i*3, 1);
+    result.push(d.getFullYear()+'-Q'+Math.ceil((d.getMonth()+1)/3));
+  }
+  return [...new Set(result)];
+}
+
+function initials(name) {
+  return name.split(' ').map(n=>n[0]).join('').slice(0,2).toUpperCase();
+}
+
+// ============================================================
+// FINANCE MODEL
+// ============================================================
+function sessionsInQ(q) {
+  const ms = quarterMonths(q);
+  return S.sessions.filter(s => ms.includes(s.date.slice(0,7)));
+}
+
+function courtCostsInQ(q) {
+  return sessionsInQ(q).reduce((a,s) => a + (S.sessionCosts[s.id]||0), 0);
+}
+
+function shuttleCostsInQ(q) {
+  const ms = quarterMonths(q);
+  return S.shuttleCosts.filter(c=>ms.includes(c.month)).reduce((a,c)=>a+c.amount,0);
+}
+
+function totalCostsInQ(q) {
+  return courtCostsInQ(q) + shuttleCostsInQ(q);
+}
+
+function feesPaidByMemberInQ(memberId, q) {
+  return S.feePayments.filter(p=>p.memberId===memberId && p.quarter===q).reduce((a,p)=>a+p.amount,0);
+}
+
+// Cost charged to a member in a given quarter
+function memberCostInQ(member, q) {
+  const sessions = sessionsInQ(q);
+  const permCount = Math.max(1, S.members.filter(m=>m.type==='permanent').length);
+  let cost = 0;
+  if (member.type === 'permanent') {
+    // Court: permanent members share equally regardless of attendance
+    sessions.forEach(s => {
+      cost += (S.sessionCosts[s.id]||0) / permCount;
+    });
+    // Shuttles: split equally among permanent members
+    cost += shuttleCostsInQ(q) / permCount;
+  } else {
+    // Casual: flat A$10 per session attended
+    sessions.forEach(s => {
+      if (s.players.find(p=>p.id===member.id && p.status==='going')) cost += CASUAL_FEE;
+    });
+  }
+  return cost;
+}
+
+// Running balance across ALL time (carry-over)
+function memberRunningBalance(member) {
+  let totalPaid = S.feePayments.filter(p=>p.memberId===member.id).reduce((a,p)=>a+p.amount,0);
+  const permCount = Math.max(1, S.members.filter(m=>m.type==='permanent').length);
+  let totalCost = 0;
+  if (member.type === 'permanent') {
+    S.sessions.forEach(s => {
+      totalCost += (S.sessionCosts[s.id]||0) / permCount;
+    });
+    totalCost += S.shuttleCosts.reduce((a,c)=>a+c.amount,0) / permCount;
+  } else {
+    S.sessions.forEach(s => {
+      if (s.players.find(p=>p.id===member.id && p.status==='going')) totalCost += CASUAL_FEE;
+    });
+    // Casual fee payments already counted above
+  }
+  return totalPaid - totalCost;
+}
+
+// Pool-wide balance
+function poolBalance() {
+  const totalIn = S.feePayments.reduce((a,p)=>a+p.amount,0);
+  const totalCourtCosts = Object.values(S.sessionCosts||{}).reduce((a,v)=>a+v,0);
+  const totalShuttle = S.shuttleCosts.reduce((a,c)=>a+c.amount,0);
+  return totalIn - totalCourtCosts - totalShuttle;
+}
+
+// Alert: pool balance low relative to upcoming costs
+function feeAlert() {
+  const bal = poolBalance();
+  const q = currentQuarter();
+  const permMembers = S.members.filter(m=>m.type==='permanent');
+  // Estimate next quarter cost based on current quarter average
+  const currentCosts = totalCostsInQ(q);
+  const sessCount = sessionsInQ(q).length || 1;
+  const weeklyRate = currentCosts / sessCount;
+  const threshold = weeklyRate * 4; // alert when balance < ~4 sessions worth
+  const totalFees = permMembers.reduce((a,m)=>a+m.fee,0);
+  return { alert: bal < threshold && totalFees > 0, balance: bal, threshold, totalFees };
+}
+
+// ============================================================
+// NAV
+// ============================================================
+function showView(name, btn) {
+  document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+  document.querySelectorAll('.nav-tab').forEach(t=>t.classList.remove('active'));
+  document.getElementById('view-'+name).classList.add('active');
+  if (btn) btn.classList.add('active');
+  if (name==='sessions') renderSessions();
+  if (name==='rsvp')     renderRSVP();
+  if (name==='finance')  renderFinance();
+  if (name==='tournament') renderTournament();
+}
+
+// ============================================================
+// SESSIONS
+// ============================================================
+function renderSessions() {
+  const el = document.getElementById('sessions-list');
+  if (!S.sessions.length) {
+    el.innerHTML = '<div class="empty"><div class="ico">🏸</div><h3>No sessions yet</h3><p>Create your first session to get started</p></div>';
+    return;
+  }
+  const sorted = [...S.sessions].sort((a,b)=>a.date.localeCompare(b.date));
+  el.innerHTML = sorted.map(s=>buildSessionCard(s)).join('');
+}
+
+function buildSessionCard(s) {
+  const going    = s.players.filter(p=>p.status==='going');
+  const maybe    = s.players.filter(p=>p.status==='maybe');
+  const notgoing = s.players.filter(p=>p.status==='notgoing');
+  const spots    = Math.max(0, s.maxPlayers - going.length);
+  const fill     = Math.min(100, Math.round(going.length/s.maxPlayers*100));
+  const bc = s.status==='closed' ? 'b-closed' : spots===0 ? 'b-full' : 'b-open';
+  const bt = s.status==='closed' ? 'Closed'   : spots===0 ? 'Full'   : 'Open';
+
+  const chipGroup = (arr, cls) => arr.map(p => {
+    return '<div class="chip '+cls+'">'
+      + '<div class="av">'+initials(p.name)+'</div>'
+      + p.name
+      + '<button class="chip-x" onclick="doRemovePlayer('+s.id+','+p.id+')">×</button>'
+      + '</div>';
+  }).join('');
+
+  const closeBtn = s.status==='open'
+    ? '<button class="btn btn-red btn-sm" onclick="doCloseSession('+s.id+')">🔒 Close</button>'
+    : '<button class="btn btn-ghost btn-sm" onclick="doReopenSession('+s.id+')">🔓 Reopen</button>';
+
+  return '<div class="card" id="card-'+s.id+'">'
+    + '<div class="card-hdr">'
+    +   '<div><h2>'+fmtDate(s.date)+'</h2><p>'+s.time+' · '+s.venue+'</p></div>'
+    +   '<span class="badge '+bc+'">'+bt+'</span>'
+    + '</div>'
+    + '<div class="fill-bar"><div class="fill-bar-inner" style="width:'+fill+'%"></div></div>'
+    + '<div class="card-body">'
+    +   '<div class="stats-row">'
+    +     '<div class="stat-box"><div class="stat-num">'+going.length+'<span style="font-size:.9rem;color:#aaa">/'+s.maxPlayers+'</span></div><div class="stat-lbl">Confirmed</div></div>'
+    +     '<div class="stat-box"><div class="stat-num">'+maybe.length+'</div><div class="stat-lbl">Maybe</div></div>'
+    +     '<div class="stat-box"><div class="stat-num" style="color:'+(spots>0?'var(--green)':'var(--red)')+'">'+spots+'</div><div class="stat-lbl">Spots Left</div></div>'
+    +   '</div>'
+    + (going.length    ? '<div class="sec-lbl">✅ Going ('+going.length+')</div><div class="chips">'+chipGroup(going,'going')+'</div>' : '')
+    + (maybe.length    ? '<div class="sec-lbl">🤔 Maybe ('+maybe.length+')</div><div class="chips">'+chipGroup(maybe,'maybe')+'</div>' : '')
+    + (notgoing.length ? '<div class="sec-lbl">❌ Not going ('+notgoing.length+')</div><div class="chips">'+chipGroup(notgoing,'notgoing')+'</div>' : '')
+    + (!s.players.length ? '<p style="color:var(--mid);font-size:.83rem;padding:6px 0">No responses yet</p>' : '')
+    + (s.notes ? '<p style="font-size:.79rem;color:var(--mid);margin-top:7px">📌 '+s.notes+'</p>' : '')
+    + '<div class="actions">'
+    +   '<button class="btn btn-green btn-sm" onclick="doOpenAddPlayer('+s.id+')">➕ Add Player</button>'
+    +   '<button class="btn btn-wa btn-sm" onclick="doOpenWA('+s.id+')"><svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg> WhatsApp</button>'
+    +   '<button class="btn btn-ghost btn-sm" onclick="doCopyLink('+s.id+')">🔗 RSVP Link</button>'
+    +   closeBtn
+    +   '<button class="btn btn-red btn-sm" style="margin-left:auto" onclick="doDeleteSession('+s.id+')">🗑 Delete</button>'
+    + '</div>'
+    + '</div></div>';
+}
+
+// Named functions — NOT inline arrow functions — so they work in innerHTML onclick
+function doDeleteSession(id) {
+  showConfirm('Delete session?', 'This cannot be undone.', function() {
+    S.sessions = S.sessions.filter(s=>s.id!==id);
+    delete S.sessionCosts[id];
+    save(); renderSessions(); showToast('Session deleted');
+  });
+}
+function doCloseSession(id) {
+  const s = S.sessions.find(x=>x.id===id);
+  if (s) { s.status='closed'; save(); renderSessions(); showToast('Session closed'); }
+}
+function doReopenSession(id) {
+  const s = S.sessions.find(x=>x.id===id);
+  if (s) { s.status='open'; save(); renderSessions(); showToast('Session reopened'); }
+}
+function doRemovePlayer(sid, pid) {
+  const s = S.sessions.find(x=>x.id===sid);
+  if (!s) return;
+  const p = s.players.find(x=>x.id===pid);
+  s.players = s.players.filter(x=>x.id!==pid);
+  save(); renderSessions();
+  if (p) showToast(p.name+' removed');
+}
+
+function openNewSession() {
+  document.getElementById('f-date').value = new Date().toISOString().split('T')[0];
+  document.getElementById('f-venue').value = '';
+  document.getElementById('f-notes').value = '';
+  document.getElementById('f-max').value = '12';
+  openModal('m-session');
+}
+function createSession() {
+  const date = document.getElementById('f-date').value;
+  if (!date) { showToast('Pick a date'); return; }
+  const id = Date.now();
+  S.sessions.push({
+    id, date,
+    time: document.getElementById('f-time').value,
+    venue: document.getElementById('f-venue').value.trim() || 'TBC',
+    maxPlayers: parseInt(document.getElementById('f-max').value)||12,
+    notes: document.getElementById('f-notes').value.trim(),
+    status: 'open', players: []
+  });
+  save(); closeModal('m-session'); renderSessions(); showToast('Session created ✅');
+}
+
+// ============================================================
+// ADD PLAYER
+// ============================================================
+let _curSid = null, _pending = [];
+
+function doOpenAddPlayer(sid) {
+  _curSid = sid; _pending = [];
+  const s = S.sessions.find(x=>x.id===sid);
+  const existIds = s.players.map(p=>p.id);
+  const avail = S.members.filter(m=>!existIds.includes(m.id));
+  const pills = document.getElementById('mpills');
+  pills.innerHTML = avail.length
+    ? avail.map(m=>
+        '<div class="mpill" onclick="togglePill(this)" data-id="'+m.id+'" data-name="'+m.name+'" data-type="'+m.type+'">'
+        + m.name
+        + ' <span class="mtype mtype-'+(m.type==='permanent'?'perm':'cas')+'">'+(m.type==='permanent'?'Perm':'Casual')+'</span>'
+        + '</div>'
+      ).join('')
+    : '<span style="color:var(--mid);font-size:.83rem">All members already added</span>';
+  document.getElementById('guest-in').value = '';
+  openModal('m-player');
+}
+function togglePill(el) {
+  el.classList.toggle('sel');
+  const id=parseFloat(el.dataset.id), name=el.dataset.name, type=el.dataset.type;
+  if (el.classList.contains('sel')) _pending.push({id,name,type,member:true});
+  else _pending = _pending.filter(p=>p.id!==id);
+}
+function addGuest() {
+  const name = document.getElementById('guest-in').value.trim();
+  if (!name) return;
+  const id = Date.now()+Math.random();
+  _pending.push({id,name,type:'casual',member:false});
+  const el = document.createElement('div');
+  el.className='mpill sel'; el.textContent=name+' (guest)';
+  document.getElementById('mpills').appendChild(el);
+  document.getElementById('guest-in').value='';
+  showToast(name+' staged');
+}
+function confirmPlayers() {
+  const s = S.sessions.find(x=>x.id===_curSid);
+  const status = document.getElementById('p-status').value;
+  _pending.forEach(p=>{ if(!s.players.find(x=>x.id===p.id)) s.players.push({...p,status}); });
+  save(); closeModal('m-player'); renderSessions();
+  showToast(_pending.length+' player(s) added'); _pending=[];
+}
+
+// ============================================================
+// WHATSAPP
+// ============================================================
+function doOpenWA(sid) {
+  const s = S.sessions.find(x=>x.id===sid);
+  const going = s.players.filter(p=>p.status==='going');
+  const maybe = s.players.filter(p=>p.status==='maybe');
+  const spots = Math.max(0, s.maxPlayers-going.length);
+  let msg = '🏸 *BADMINTON SESSION*\n📅 '+fmtDate(s.date)+' at '+s.time+'\n📍 '+s.venue+'\n';
+  if (s.notes) msg += '📌 '+s.notes+'\n';
+  msg += '\n👥 *'+going.length+'/'+s.maxPlayers+' confirmed* · '+(spots?spots+' spot'+(spots>1?'s':'')+' left':'⚠️ FULL')+'\n';
+  if (going.length) msg += '\n✅ Going: '+going.map(p=>p.name).join(', ')+'\n';
+  if (maybe.length) msg += '🤔 Maybe: '+maybe.map(p=>p.name).join(', ')+'\n';
+  msg += '\n👇 Reply to RSVP';
+  document.getElementById('wa-text').textContent = msg;
+  document.getElementById('wa-link').href = 'https://wa.me/?text='+encodeURIComponent(msg);
+  openModal('m-wa');
+}
+function copyWA() {
+  navigator.clipboard.writeText(document.getElementById('wa-text').textContent)
+    .then(()=>showToast('Copied 📋'));
+}
+function doCopyLink(sid) {
+  navigator.clipboard.writeText(location.href.split('?')[0]+'?s='+sid)
+    .then(()=>showToast('RSVP link copied 🔗'));
+}
+
+// ============================================================
+// RSVP
+// ============================================================
+let _rsvpStatus = 'going';
+
+function renderRSVP() {
+  const el = document.getElementById('rsvp-content');
+  const open = S.sessions.filter(s=>s.status==='open').sort((a,b)=>a.date.localeCompare(b.date));
+  if (!open.length) {
+    el.innerHTML='<div class="empty"><div class="ico">📭</div><h3>No open sessions</h3><p>Nothing to RSVP to right now</p></div>';
+    return;
+  }
+  const s = open[0];
+  const going = s.players.filter(p=>p.status==='going');
+  const maybe = s.players.filter(p=>p.status==='maybe');
+  const spots = Math.max(0, s.maxPlayers-going.length);
+  const fill = Math.min(100, Math.round(going.length/s.maxPlayers*100));
+
+  let memberOptions = S.members.map(m=>
+    '<option value="'+m.id+'">'+m.name+' ('+(m.type==='permanent'?'Permanent':'Casual')+')</option>'
+  ).join('');
+
+  let goingChips = going.map(p=>'<div class="chip going"><div class="av">'+initials(p.name)+'</div>'+p.name+'</div>').join('');
+  let maybeChips = maybe.map(p=>'<div class="chip maybe"><div class="av">'+initials(p.name)+'</div>'+p.name+'</div>').join('');
+
+  let upcomingHTML = '';
+  if (open.length > 1) {
+    upcomingHTML = '<div class="rsvp-card"><h3>Upcoming sessions</h3>';
+    open.slice(1).forEach(u=>{
+      upcomingHTML += '<div style="padding:8px 0;border-bottom:1px solid var(--border);font-size:.85rem;display:flex;justify-content:space-between;align-items:center">'
+        + '<div><strong>'+fmtDate(u.date)+'</strong> · '+u.time+'<br><span style="color:var(--mid);font-size:.78rem">'+u.venue+'</span></div>'
+        + '<span class="badge b-open">Open</span></div>';
+    });
+    upcomingHTML += '</div>';
+  }
+
+  el.innerHTML = '<div class="rsvp-hero">'
+    + '<h1>🏸 Are you coming?</h1>'
+    + '<p>'+fmtDate(s.date)+' · '+s.time+' · '+s.venue+'</p>'
+    + (s.notes?'<p style="margin-top:5px;font-size:.8rem">📌 '+s.notes+'</p>':'')
+    + '</div>'
+
+    + '<div class="rsvp-card"><h3>Update your RSVP</h3>'
+    + '<div class="frow"><label>Your name</label>'
+    +   '<select id="rsvp-sel" onchange="toggleGuestRow()">'
+    +     '<option value="">— Select your name —</option>'
+    +     memberOptions
+    +     '<option value="guest">I\'m a guest (not a member)</option>'
+    +   '</select>'
+    + '</div>'
+    + '<div class="frow" id="guest-rsvp-row" style="display:none"><label>Your name</label><input type="text" id="rsvp-guest" placeholder="Enter your name"></div>'
+    + '<div class="sec-lbl" style="margin-bottom:9px">Your status</div>'
+    + '<div class="rsvp-opts">'
+    +   '<div class="rsvp-opt sel-going" id="ro-going" onclick="selRSVP(this,\'going\')"><div class="emo">✅</div><div class="lbl">Going</div></div>'
+    +   '<div class="rsvp-opt" id="ro-maybe" onclick="selRSVP(this,\'maybe\')"><div class="emo">🤔</div><div class="lbl">Maybe</div></div>'
+    +   '<div class="rsvp-opt" id="ro-no" onclick="selRSVP(this,\'notgoing\')"><div class="emo">❌</div><div class="lbl">Can\'t make it</div></div>'
+    + '</div>'
+    + '<button class="btn btn-lime" style="width:100%;justify-content:center" onclick="submitRSVP('+s.id+')">Confirm RSVP</button>'
+    + '</div>'
+
+    + '<div class="rsvp-card"><h3>Attendance · '+going.length+'/'+s.maxPlayers+' '+(spots?'· '+spots+' spot'+(spots>1?'s':'')+' left':'· FULL')+'</h3>'
+    + '<div class="fill-bar" style="border-radius:6px;margin-bottom:13px"><div class="fill-bar-inner" style="width:'+fill+'%"></div></div>'
+    + (going.length?'<div class="sec-lbl">✅ Going</div><div class="chips">'+goingChips+'</div>':'')
+    + (maybe.length?'<div class="sec-lbl" style="margin-top:9px">🤔 Maybe</div><div class="chips">'+maybeChips+'</div>':'')
+    + '</div>'
+
+    + upcomingHTML;
+
+  _rsvpStatus = 'going';
+}
+
+function toggleGuestRow() {
+  const sel = document.getElementById('rsvp-sel');
+  document.getElementById('guest-rsvp-row').style.display = sel.value==='guest'?'block':'none';
+}
+function selRSVP(el, st) {
+  document.querySelectorAll('.rsvp-opt').forEach(o=>o.className='rsvp-opt');
+  el.classList.add('sel-'+(st==='notgoing'?'no':st));
+  _rsvpStatus = st;
+}
+function submitRSVP(sid) {
+  const s = S.sessions.find(x=>x.id===sid);
+  const sel = document.getElementById('rsvp-sel');
+  if (!sel.value) { showToast('Select your name'); return; }
+  let id, name, type, member;
+  if (sel.value === 'guest') {
+    name = document.getElementById('rsvp-guest').value.trim();
+    if (!name) { showToast('Enter your name'); return; }
+    id=Date.now(); type='casual'; member=false;
+  } else {
+    const m = S.members.find(x=>x.id==sel.value);
+    id=m.id; name=m.name; type=m.type; member=true;
+  }
+  const idx = s.players.findIndex(p=>p.id===id);
+  if (idx>=0) s.players[idx].status=_rsvpStatus;
+  else s.players.push({id,name,type,status:_rsvpStatus,member});
+  save(); renderRSVP(); showToast('RSVP saved for '+name+' ✅');
+}
+
+// ============================================================
+// MEMBERS
+// ============================================================
+function toggleFeeRow() {
+  document.getElementById('m-fee-row').style.display =
+    document.getElementById('m-type').value==='permanent' ? 'block' : 'none';
+}
+function openAddMember() {
+  document.getElementById('m-name').value='';
+  document.getElementById('m-type').value='permanent';
+  document.getElementById('m-fee').value='60';
+  document.getElementById('m-fee-row').style.display='block';
+  openModal('m-member');
+}
+function addMember() {
+  const name = document.getElementById('m-name').value.trim();
+  if (!name) { showToast('Enter a name'); return; }
+  const type = document.getElementById('m-type').value;
+  const fee = type==='permanent' ? (parseFloat(document.getElementById('m-fee').value)||60) : 0;
+  S.members.push({id:Date.now(), name, type, fee});
+  save(); closeModal('m-member');
+  if (document.getElementById('view-finance').classList.contains('active')) renderFinance();
+  showToast(name+' added ✅');
+}
+function doRemoveMember(id) {
+  const m = S.members.find(x=>x.id===id);
+  if (!m) return;
+  showConfirm('Remove '+m.name+'?', 'They will be removed from the member list.', function() {
+    S.members = S.members.filter(x=>x.id!==id);
+    save(); renderFinance(); showToast(m.name+' removed');
+  });
+}
+
+// ============================================================
+// FINANCE
+// ============================================================
+function renderFinance() {
+  const el = document.getElementById('finance-content');
+  const q = S.financeQuarter || currentQuarter();
+  const qs = availableQuarters();
+  const qOpts = qs.map(x=>'<option value="'+x+'"'+(x===q?' selected':'')+'>'+quarterLabel(x)+'</option>').join('');
+
+  const sessions    = sessionsInQ(q);
+  const courtTotal  = courtCostsInQ(q);
+  const shuttleTotal= shuttleCostsInQ(q);
+  const allCosts    = courtTotal + shuttleTotal;
+  const months      = quarterMonths(q);
+  const feesThisQ   = S.feePayments.filter(p=>p.quarter===q).reduce((a,p)=>a+p.amount,0);
+  const poolBal     = poolBalance();
+  const permMembers = S.members.filter(m=>m.type==='permanent');
+  const permCount   = Math.max(1, permMembers.length);
+  const ai          = feeAlert();
+
+  // Casual income this quarter
+  let casualIncome = 0;
+  sessions.forEach(s=>s.players.forEach(p=>{
+    if (p.type==='casual' && p.status==='going') casualIncome += CASUAL_FEE;
+  }));
+
+  // Member rows
+  const mRows = S.members.map(m=>({
+    ...m,
+    qCost: memberCostInQ(m, q),
+    qPaid: feesPaidByMemberInQ(m.id, q),
+    runBal: memberRunningBalance(m),
+  }));
+
+  // Session cost rows
+  let sessionCostRows = '';
+  if (!sessions.length) {
+    sessionCostRows = '<p style="color:var(--mid);font-size:.83rem">No sessions this quarter</p>';
+  } else {
+    sessionCostRows = '<div style="overflow-x:auto"><table class="tbl">'
+      + '<thead><tr><th>Date</th><th>Venue</th><th>Attending</th><th>Court Cost (A$)</th><th>Per Head</th></tr></thead><tbody>';
+    sessions.forEach(s=>{
+      const going = s.players.filter(p=>p.status==='going').length;
+      const cost = S.sessionCosts[s.id]||0;
+      const ph = going>0?'A$'+(cost/going).toFixed(2):'—';
+      sessionCostRows += '<tr>'
+        + '<td style="white-space:nowrap;font-size:.8rem">'+fmtShort(s.date)+'</td>'
+        + '<td style="font-size:.78rem;color:var(--mid)">'+(s.venue.length>22?s.venue.slice(0,22)+'…':s.venue)+'</td>'
+        + '<td>'+going+'</td>'
+        + '<td><div style="display:flex;align-items:center;gap:5px"><span style="color:var(--mid);font-size:.82rem">A$</span>'
+        +   '<input class="inline-num" type="number" min="0" step="0.50" value="'+cost+'" onchange="doSetSessionCost('+s.id+',parseFloat(this.value)||0)">'
+        + '</div></td>'
+        + '<td style="font-weight:600;color:var(--green)">'+ph+'</td>'
+        + '</tr>';
+    });
+    sessionCostRows += '</tbody></table></div>';
+  }
+
+  // Shuttle cost rows
+  const shuttleEntries = S.shuttleCosts.filter(c=>months.includes(c.month));
+  let shuttleRows = '';
+  if (!shuttleEntries.length) {
+    shuttleRows = '<p style="color:var(--mid);font-size:.83rem">No shuttle costs this quarter</p>';
+  } else {
+    shuttleRows = '<table class="tbl" style="margin-bottom:9px"><thead><tr><th>Date</th><th>Description</th><th>Amount</th><th></th></tr></thead><tbody>';
+    shuttleEntries.forEach(c=>{
+      shuttleRows += '<tr>'
+        + '<td style="font-size:.8rem;white-space:nowrap">'+c.date+'</td>'
+        + '<td>'+c.desc+'</td>'
+        + '<td style="font-weight:600">A$'+c.amount.toFixed(2)+'</td>'
+        + '<td><button class="btn btn-red btn-sm" style="padding:3px 7px" onclick="doDeleteShuttle(\''+c.id+'\')">✕</button></td>'
+        + '</tr>';
+    });
+    shuttleRows += '</tbody></table>'
+      + '<div style="text-align:right;font-size:.82rem;font-weight:600;color:var(--green)">Total: A$'+shuttleTotal.toFixed(2)+' · Per permanent member: A$'+(shuttleTotal/permCount).toFixed(2)+'</div>';
+  }
+
+  // Member balance rows
+  let memberRows = '';
+  mRows.forEach(m=>{
+    const bc = m.runBal>0.005?'bal-pos':m.runBal<-0.005?'bal-neg':'bal-zero';
+    const bl = m.runBal>0.005?'+A$'+m.runBal.toFixed(2)+' credit':m.runBal<-0.005?'−A$'+Math.abs(m.runBal).toFixed(2)+' owes':'Even';
+    const feeCell = m.type==='permanent'
+      ? '<div style="display:flex;align-items:center;gap:5px"><span style="font-size:.78rem;color:var(--mid)">A$</span>'
+        + '<input class="inline-num" type="number" min="0" step="5" value="'+m.qPaid+'" onchange="doSetFeePayment('+m.id+',\''+q+'\',parseFloat(this.value)||0)">'
+        + '</div>'
+      : '<span style="color:var(--mid);font-size:.82rem">A$'+CASUAL_FEE+'/session</span>';
+    memberRows += '<tr>'
+      + '<td><strong>'+m.name+'</strong></td>'
+      + '<td><span class="mtype mtype-'+(m.type==='permanent'?'perm':'cas')+'">'+(m.type==='permanent'?'Permanent':'Casual')+'</span></td>'
+      + '<td>'+feeCell+'</td>'
+      + '<td style="font-size:.83rem">A$'+m.qCost.toFixed(2)+'</td>'
+      + '<td class="'+bc+'">'+bl+'</td>'
+      + '<td><button class="btn btn-red btn-sm" style="padding:3px 7px" onclick="doRemoveMember('+m.id+')">✕</button></td>'
+      + '</tr>';
+  });
+
+  el.innerHTML =
+
+    (ai.alert ? '<div class="alert-banner"><div class="ico">⚠️</div><div>'
+      + '<strong>Time to collect fees!</strong> Pool balance is <strong>A$'+ai.balance.toFixed(2)+'</strong> — running low. '
+      + 'Collect the next quarterly fees from permanent members soon.<br>'
+      + '<button class="btn btn-amber btn-sm" style="margin-top:8px" onclick="doOpenCollectFees(\''+q+'\')">💰 Collect Fees Now</button>'
+      + '</div></div>' : '')
+
+    + '<div style="display:flex;align-items:center;gap:10px;margin-bottom:18px;flex-wrap:wrap">'
+    +   '<label style="font-size:.78rem;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--mid)">Quarter</label>'
+    +   '<select style="padding:7px 11px;border:1.5px solid var(--border);border-radius:8px;font-family:Inter,sans-serif;font-size:.86rem;background:white;outline:none" onchange="S.financeQuarter=this.value;save();renderFinance()">'
+    +     qOpts
+    +   '</select>'
+    +   '<button class="btn btn-ghost btn-sm" onclick="doOpenCollectFees(\''+q+'\')">💰 Collect Fees</button>'
+    + '</div>'
+
+    + '<div class="fin-card"><h3>📊 '+quarterLabel(q)+' Overview</h3>'
+    +   '<div class="fin-grid">'
+    +     '<div class="fin-stat"><div class="num">A$'+feesThisQ.toFixed(2)+'</div><div class="lbl">Fees Collected (Q)</div></div>'
+    +     '<div class="fin-stat"><div class="num">A$'+casualIncome.toFixed(2)+'</div><div class="lbl">Casual Income (Q)</div></div>'
+    +     '<div class="fin-stat"><div class="num">A$'+allCosts.toFixed(2)+'</div><div class="lbl">Total Costs (Q)</div></div>'
+    +     '<div class="fin-stat"><div class="num" style="color:'+(poolBal>=0?'var(--green)':'var(--red)')+'">A$'+poolBal.toFixed(2)+'</div><div class="lbl">Pool Balance (all-time)</div></div>'
+    +   '</div>'
+    +   '<div style="font-size:.8rem;color:var(--mid)">Court: <strong>A$'+courtTotal.toFixed(2)+'</strong> · Shuttles: <strong>A$'+shuttleTotal.toFixed(2)+'</strong> · '+sessions.length+' session'+(sessions.length!==1?'s':'')+' this quarter</div>'
+    + '</div>'
+
+    + '<div class="fin-card"><h3>🏟️ Session Court Costs</h3>'+sessionCostRows+'</div>'
+
+    + '<div class="fin-card">'
+    +   '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:13px">'
+    +     '<h3 style="margin:0">🪶 Shuttle Costs</h3>'
+    +     '<button class="btn btn-ghost btn-sm" onclick="doOpenShuttle()">＋ Add</button>'
+    +   '</div>'
+    +   shuttleRows
+    + '</div>'
+
+    + '<div class="fin-card">'
+    +   '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:13px">'
+    +     '<h3 style="margin:0">👥 Member Balances</h3>'
+    +     '<button class="btn btn-ghost btn-sm" onclick="openAddMember()">＋ Add Member</button>'
+    +   '</div>'
+    +   '<div style="overflow-x:auto"><table class="tbl">'
+    +     '<thead><tr><th>Name</th><th>Type</th><th>Q Fee Paid</th><th>Q Cost</th><th>Running Balance</th><th></th></tr></thead>'
+    +     '<tbody>'+memberRows+'</tbody>'
+    +   '</table></div>'
+    +   '<div style="margin-top:11px;font-size:.78rem;color:var(--mid)">'
+    +     '💡 <strong>Permanent:</strong> charged their share of all court & shuttle costs each quarter regardless of attendance. '
+    +     'Enter A$ paid to update balance. '
+    +     '<strong>Casual:</strong> charged A$'+CASUAL_FEE+' per session attended. Running balance carries over between quarters.'
+    +   '</div>'
+    + '</div>';
+}
+
+function doSetSessionCost(id, cost) {
+  S.sessionCosts[id] = cost; save(); renderFinance();
+}
+function doSetFeePayment(memberId, q, amount) {
+  const idx = S.feePayments.findIndex(p=>p.memberId===memberId && p.quarter===q);
+  if (idx>=0) S.feePayments[idx].amount=amount;
+  else S.feePayments.push({id:Date.now(), memberId, quarter:q, amount, date:new Date().toISOString().split('T')[0]});
+  save(); renderFinance();
+}
+function doOpenCollectFees(q) {
+  const perm = S.members.filter(m=>m.type==='permanent');
+  document.getElementById('collect-q-label').textContent = quarterLabel(q);
+  let html = '';
+  perm.forEach(m=>{
+    const paid = feesPaidByMemberInQ(m.id, q);
+    const done = paid >= m.fee * 0.99;
+    html += '<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border)">'
+      + '<div><strong>'+m.name+'</strong><br><span style="font-size:.78rem;color:var(--mid)">Fee: A$'+m.fee+' · Paid: A$'+paid.toFixed(2)+'</span></div>'
+      + (done
+        ? '<span style="color:#2E7D32;font-size:.82rem;font-weight:600">✓ Paid</span>'
+        : '<button class="btn btn-lime btn-sm" onclick="doQuickPay('+m.id+',\''+q+'\','+m.fee+')">Mark A$'+m.fee+' Paid</button>')
+      + '</div>';
+  });
+  document.getElementById('collect-list').innerHTML = html;
+  openModal('m-collect');
+}
+function doQuickPay(mid, q, fee) {
+  doSetFeePayment(mid, q, fee);
+  doOpenCollectFees(q); // refresh list
+}
+function markAllPaid() {
+  const q = S.financeQuarter || currentQuarter();
+  S.members.filter(m=>m.type==='permanent').forEach(m=>doSetFeePayment(m.id,q,m.fee));
+  closeModal('m-collect');
+  renderFinance();
+  showToast('All permanent members marked as paid ✅');
+}
+function doOpenShuttle() {
+  document.getElementById('sc-date').value = new Date().toISOString().split('T')[0];
+  document.getElementById('sc-desc').value = '';
+  document.getElementById('sc-amount').value = '';
+  openModal('m-shuttle');
+}
+function saveShuttle() {
+  const date   = document.getElementById('sc-date').value;
+  const desc   = document.getElementById('sc-desc').value.trim()||'Shuttles';
+  const amount = parseFloat(document.getElementById('sc-amount').value);
+  if (!date||isNaN(amount)||amount<=0){showToast('Enter a valid date and amount');return;}
+  S.shuttleCosts.push({id:String(Date.now()), date, month:date.slice(0,7), desc, amount});
+  save(); closeModal('m-shuttle');
+  S.financeQuarter = dateToQuarter(date);
+  renderFinance(); showToast('Shuttle cost added: A$'+amount.toFixed(2)+' ✅');
+}
+function doDeleteShuttle(cid) {
+  S.shuttleCosts = S.shuttleCosts.filter(c=>c.id!==cid);
+  save(); renderFinance(); showToast('Entry removed');
+}
+
+// ============================================================
+// UTILS
+// ============================================================
+function openModal(id)  { document.getElementById(id).classList.add('open'); }
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+
+document.querySelectorAll('.overlay').forEach(o=>{
+  o.addEventListener('click', e=>{ if(e.target===o) o.classList.remove('open'); });
+});
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'), 2700);
+}
+
+
+// ─── CONFIRM DIALOG (replaces confirm() which is blocked in iframes) ───────
+function showConfirm(title, msg, onOk) {
+  document.getElementById('confirm-title').textContent = title;
+  document.getElementById('confirm-msg').textContent = msg;
+  const btn = document.getElementById('confirm-ok');
+  // Replace button to clear old listeners
+  const newBtn = btn.cloneNode(true);
+  btn.parentNode.replaceChild(newBtn, btn);
+  newBtn.addEventListener('click', function() {
+    closeModal('m-confirm');
+    onOk();
+  });
+  openModal('m-confirm');
+}
+
+
+// ============================================================
+// TOURNAMENT ENGINE
+// ============================================================
+
+// ── State helpers ──────────────────────────────────────────
+function activeTournament() {
+  return S.tournaments.length ? S.tournaments[S.tournaments.length - 1] : null;
+}
+
+// Generate round-robin pairs (each team plays every other exactly once)
+function generateRoundRobin(teams) {
+  const matches = [];
+  for (let i = 0; i < teams.length; i++) {
+    for (let j = i + 1; j < teams.length; j++) {
+      matches.push({ id: Date.now() + matches.length, t1: teams[i].id, t2: teams[j].id, s1: null, s2: null });
+    }
+  }
+  return matches;
+}
+
+// Compute standings from round-robin matches
+function computeStandings(teams, matches) {
+  const stats = {};
+  teams.forEach(t => { stats[t.id] = { id: t.id, wins: 0, losses: 0, draws: 0, pf: 0, pa: 0 }; });
+  matches.forEach(m => {
+    if (m.s1 === null || m.s2 === null) return;
+    const s1 = parseInt(m.s1), s2 = parseInt(m.s2);
+    stats[m.t1].pf += s1; stats[m.t1].pa += s2;
+    stats[m.t2].pf += s2; stats[m.t2].pa += s1;
+    if (s1 > s2)      { stats[m.t1].wins++; stats[m.t2].losses++; }
+    else if (s2 > s1) { stats[m.t2].wins++; stats[m.t1].losses++; }
+    else              { stats[m.t1].draws++; stats[m.t2].draws++; }
+  });
+  return teams.map(t => ({ ...t, ...stats[t.id], diff: stats[t.id].pf - stats[t.id].pa }))
+    .sort((a, b) => b.wins - a.wins || b.diff - a.diff || b.pf - a.pf);
+}
+
+// Check if all RR matches are scored
+function rrComplete(t) {
+  return t.rrMatches.every(m => m.s1 !== null && m.s2 !== null);
+}
+
+// Seed semi-finals from top 4 standings
+function seedSemis(t) {
+  if (t.teams.length < 4) return;
+  const ranked = computeStandings(t.teams, t.rrMatches);
+  // SF1: 1st vs 4th, SF2: 2nd vs 3rd
+  t.sf = [
+    { id: 'sf1', label: 'Semi-final 1', t1: ranked[0].id, t2: ranked[3].id, s1: null, s2: null },
+    { id: 'sf2', label: 'Semi-final 2', t1: ranked[1].id, t2: ranked[2].id, s1: null, s2: null },
+  ];
+  t.final = { id: 'final', label: 'Final', t1: null, t2: null, s1: null, s2: null };
+  t.phase = 'knockout';
+  save();
+}
+
+function sfWinner(t, sfId) {
+  const sf = t.sf.find(m => m.id === sfId);
+  if (!sf || sf.s1 === null) return null;
+  return parseInt(sf.s1) >= parseInt(sf.s2) ? sf.t1 : sf.t2;
+}
+
+function getTeam(t, tid) { return t.teams.find(x => x.id === tid); }
+function teamName(t, tid) { const tm = getTeam(t, tid); return tm ? tm.name : '?'; }
+function teamPlayers(t, tid) { const tm = getTeam(t, tid); return tm ? tm.p1 + ' & ' + tm.p2 : ''; }
+
+// ── Render ─────────────────────────────────────────────────
+function renderTournament() {
+  const el = document.getElementById('tournament-content');
+  const t = activeTournament();
+  if (!t) { renderTournamentHome(el); return; }
+  renderTournamentActive(el, t);
+}
+
+function renderTournamentHome(el) {
+  el.innerHTML =
+    '<div class="t-hero"><h1>Tournament</h1><p>Run a round-robin + knockout badminton doubles tournament</p></div>'
+    + (S.tournaments.length > 0 ? renderPastTournaments() : '')
+    + '<div style="text-align:center;padding:30px 20px">'
+    + '<div style="font-size:2.5rem;margin-bottom:12px">🏸</div>'
+    + '<p style="color:var(--mid);font-size:.9rem;margin-bottom:18px">Create a tournament to get started</p>'
+    + '<button class="btn btn-lime" onclick="openNewTournament()">＋ New Tournament</button>'
+    + '</div>';
+}
+
+function renderPastTournaments() {
+  // show only past/finished ones (all except last if active)
+  const past = S.tournaments.slice(0, -1);
+  if (!past.length) return '';
+  let h = '<div class="t-card" style="margin-bottom:16px"><div class="t-card-hdr"><h3>Past Tournaments</h3></div><div class="t-card-body">';
+  past.forEach(t => {
+    const winner = t.final && t.final.s1 !== null
+      ? teamName(t, parseInt(t.final.s1) >= parseInt(t.final.s2) ? t.final.t1 : t.final.t2)
+      : 'In progress';
+    h += '<div class="team-row"><div class="team-num">🏆</div><div class="team-info"><div class="team-name">'+t.name+'</div><div class="team-players">'+t.date+' · '+t.teams.length+' teams · Winner: '+winner+'</div></div></div>';
+  });
+  return h + '</div></div>';
+}
+
+// ============================================================
+// TOURNAMENT ENGINE
+// ============================================================
+
+function activeTournament() {
+  return S.tournaments.length ? S.tournaments[S.tournaments.length - 1] : null;
+}
+
+function generateRoundRobin(teams) {
+  const matches = [];
+  for (let i = 0; i < teams.length; i++) {
+    for (let j = i + 1; j < teams.length; j++) {
+      matches.push({ id: Date.now() + matches.length, t1: teams[i].id, t2: teams[j].id, s1: null, s2: null });
+    }
+  }
+  return matches;
+}
+
+function computeStandings(teams, matches) {
+  const stats = {};
+  teams.forEach(t => { stats[t.id] = { wins:0, losses:0, draws:0, pf:0, pa:0 }; });
+  matches.forEach(m => {
+    if (m.s1 === null || m.s2 === null) return;
+    const s1 = parseInt(m.s1), s2 = parseInt(m.s2);
+    stats[m.t1].pf += s1; stats[m.t1].pa += s2;
+    stats[m.t2].pf += s2; stats[m.t2].pa += s1;
+    if (s1 > s2)      { stats[m.t1].wins++; stats[m.t2].losses++; }
+    else if (s2 > s1) { stats[m.t2].wins++; stats[m.t1].losses++; }
+    else              { stats[m.t1].draws++; stats[m.t2].draws++; }
+  });
+  return teams.map(t => ({
+    ...t, ...stats[t.id],
+    diff: stats[t.id].pf - stats[t.id].pa
+  })).sort((a,b) => b.wins - a.wins || b.diff - a.diff || b.pf - a.pf);
+}
+
+function rrComplete(t) {
+  return t.rrMatches.every(m => m.s1 !== null && m.s2 !== null);
+}
+
+function getTeam(t, tid) { return t.teams.find(x => x.id === tid); }
+function tName(t, tid)   { var tm = getTeam(t,tid); return tm ? tm.name : '?'; }
+function tPlayers(t,tid) { var tm = getTeam(t,tid); return tm ? tm.p1+' & '+tm.p2 : ''; }
+
+function sfWinner(t, sfId) {
+  var sf = t.sf.find(m => m.id === sfId);
+  if (!sf || sf.s1 === null) return null;
+  return parseInt(sf.s1) >= parseInt(sf.s2) ? sf.t1 : sf.t2;
+}
+
+function seedSemis(t) {
+  var ranked = computeStandings(t.teams, t.rrMatches);
+  t.sf = [
+    { id: 'sf1', t1: ranked[0].id, t2: ranked[3].id, s1: null, s2: null },
+    { id: 'sf2', t1: ranked[1].id, t2: ranked[2].id, s1: null, s2: null }
+  ];
+  t.final = { id: 'final', t1: null, t2: null, s1: null, s2: null };
+  t.phase = 'knockout';
+  save();
+}
+
+// ── Render ─────────────────────────────────────────────────────────────────
+function renderTournament() {
+  var el = document.getElementById('tournament-content');
+  var t = activeTournament();
+  if (!t) { renderTHome(el); return; }
+  renderTActive(el, t);
+}
+
+function renderTHome(el) {
+  var pastHTML = '';
+  if (S.tournaments.length > 1) {
+    pastHTML = '<div class="t-card" style="margin-bottom:16px"><div class="t-card-hdr"><h3>Past Tournaments</h3></div><div class="t-card-body">';
+    S.tournaments.slice(0,-1).forEach(function(pt) {
+      var w = (pt.final && pt.final.s1 !== null)
+        ? tName(pt, parseInt(pt.final.s1) >= parseInt(pt.final.s2) ? pt.final.t1 : pt.final.t2)
+        : 'In progress';
+      pastHTML += '<div class="team-row"><div class="team-num">🏆</div><div class="team-info"><div class="team-name">'+pt.name+'</div><div class="team-players">'+pt.date+' · '+pt.teams.length+' teams · Winner: '+w+'</div></div></div>';
+    });
+    pastHTML += '</div></div>';
+  }
+  el.innerHTML = '<div class="t-hero"><h1>Tournament</h1><p>Run a round-robin + knockout doubles tournament</p></div>'
+    + pastHTML
+    + '<div style="text-align:center;padding:30px 20px"><div style="font-size:2.5rem;margin-bottom:12px">🏸</div>'
+    + '<p style="color:var(--mid);font-size:.9rem;margin-bottom:18px">Create a tournament to get started</p>'
+    + '<button class="btn btn-lime" onclick="openNewTournament()">＋ New Tournament</button></div>';
+}
+
+function renderTActive(el, t) {
+  var phase = t.phase || 'setup';
+  var body = '';
+  if (phase === 'setup')      body = renderSetup(t);
+  if (phase === 'roundrobin') body = renderRoundRobin(t);
+  if (phase === 'knockout')   body = renderKnockout(t);
+
+  el.innerHTML = '<div class="t-hero"><h1>'+t.name+'</h1><p>'+t.date+' · '+t.teams.length+' teams</p></div>'
+    + buildPhaseTabs(t, phase) + body;
+}
+
+function buildPhaseTabs(t, phase) {
+  // Use data-phase attributes + event delegation to avoid quote nesting
+  var h = '<div class="phase-tabs" id="phase-tabs-row">';
+  h += '<button class="phase-tab'+(phase==='setup'?' active':'')+'" data-phase="setup">Setup</button>';
+  h += '<button class="phase-tab'+(phase==='roundrobin'?' active':'')+'" data-phase="roundrobin">Round Robin</button>';
+  if (t.sf) h += '<button class="phase-tab'+(phase==='knockout'?' active':'')+'" data-phase="knockout">Knockout</button>';
+  h += '</div>';
+  return h;
+}
+
+// Delegated click handler for phase tabs (avoids nested quotes in onclick)
+document.addEventListener('click', function(e) {
+  var btn = e.target.closest('[data-phase]');
+  if (btn) {
+    var ph = btn.getAttribute('data-phase');
+    var t = activeTournament();
+    if (!t) return;
+    if (ph === 'knockout' && !t.sf) { showToast('Complete round robin first'); return; }
+    t.phase = ph; save(); renderTournament();
+  }
+});
+
+// ── Setup ──────────────────────────────────────────────────────────────────
+function renderSetup(t) {
+  var teamsHTML = '';
+  if (!t.teams.length) {
+    teamsHTML = '<p style="color:var(--mid);font-size:.85rem;padding:8px 0">No teams yet — add at least 3 to start</p>';
+  } else {
+    t.teams.forEach(function(tm, i) {
+      teamsHTML += '<div class="team-row">'
+        + '<div class="team-num">'+(i+1)+'</div>'
+        + '<div class="team-info"><div class="team-name">'+tm.name+'</div><div class="team-players">'+tm.p1+' & '+tm.p2+'</div></div>'
+        + '<button class="btn btn-red btn-sm" style="padding:3px 8px" onclick="doDeleteTeam('+tm.id+')">✕</button>'
+        + '</div>';
+    });
+  }
+  var gc = t.teams.length * (t.teams.length-1) / 2;
+  var canStart = t.teams.length >= 3;
+  return '<div class="t-card"><div class="t-card-hdr"><h3>Teams ('+t.teams.length+')</h3>'
+    + '<button class="btn btn-ghost btn-sm" onclick="openAddTeam()">＋ Add Team</button></div>'
+    + '<div class="t-card-body">'+teamsHTML+'</div></div>'
+    + (t.teams.length >= 2 ? '<p style="font-size:.82rem;color:var(--mid);margin-bottom:14px">'+gc+' round-robin game'+(gc!==1?'s':'')+' will be generated.</p>' : '')
+    + (canStart
+        ? '<button class="btn btn-lime" style="width:100%;justify-content:center" onclick="startRoundRobin()">▶ Start Round Robin ('+gc+' games)</button>'
+        : '<p style="font-size:.82rem;color:var(--red)">Add at least 3 teams to start.</p>')
+    + '<div style="margin-top:12px;text-align:right"><button class="btn btn-red btn-sm" onclick="doDeleteTournament()">🗑 Delete Tournament</button></div>';
+}
+
+// ── Round Robin ────────────────────────────────────────────────────────────
+function renderRoundRobin(t) {
+  var standings = computeStandings(t.teams, t.rrMatches);
+  var total = t.rrMatches.length;
+  var played = t.rrMatches.filter(function(m){ return m.s1 !== null; }).length;
+  var allDone = played === total;
+
+  // Standings table
+  var standHTML = '<div class="standing-row hdr"><span>#</span><span>Team</span><span style="text-align:center">W</span><span style="text-align:center">L</span><span style="text-align:center">Diff</span><span style="text-align:center">PF</span></div>';
+  standings.forEach(function(tm, i) {
+    var rb = i===0?'r1':i===1?'r2':i===2?'r3':i===3?'r4':'';
+    var sfTag = i < 4 ? ' <span style="font-size:.65rem;background:var(--lime);color:var(--dark);border-radius:8px;padding:1px 5px;font-weight:700">SF</span>' : '';
+    standHTML += '<div class="standing-row">'
+      + '<div class="rank-badge '+rb+'">'+(i+1)+'</div>'
+      + '<div><strong>'+tm.name+'</strong>'+sfTag+'<div style="font-size:.73rem;color:var(--mid)">'+tm.p1+' & '+tm.p2+'</div></div>'
+      + '<span style="text-align:center;font-weight:700;color:var(--green)">'+tm.wins+'</span>'
+      + '<span style="text-align:center;color:var(--mid)">'+tm.losses+'</span>'
+      + '<span style="text-align:center;font-weight:600;color:'+(tm.diff>=0?'var(--green)':'var(--red)')+'">'+( tm.diff>0?'+':'')+tm.diff+'</span>'
+      + '<span style="text-align:center;color:var(--mid)">'+tm.pf+'</span>'
+      + '</div>';
+  });
+
+  // Match cards
+  var matchesHTML = '';
+  t.rrMatches.forEach(function(m, idx) {
+    var tm1 = getTeam(t, m.t1), tm2 = getTeam(t, m.t2);
+    var scored = m.s1 !== null;
+    var resultHTML = '';
+    if (scored) {
+      var s1=parseInt(m.s1), s2=parseInt(m.s2);
+      var cls = s1>s2?'res-win1':s2>s1?'res-win2':'res-draw';
+      var txt = s1>s2?tm1.name+' win':s2>s1?tm2.name+' win':'Draw';
+      resultHTML = '<div class="match-result '+cls+'">'+txt+' · '+m.s1+'–'+m.s2+'</div>';
+    }
+    matchesHTML += '<div class="match-card">'
+      + '<div class="match-hdr"><span>Game '+(idx+1)+'</span>'+(scored?'<span style="color:#2E7D32">✓ Scored</span>':'<span style="color:var(--amber)">Pending</span>')+'</div>'
+      + '<div class="match-body">'
+      +   '<div class="match-teams">'
+      +     '<div class="match-team"><div class="match-team-name">'+tm1.name+'</div><div class="match-team-players">'+tm1.p1+' & '+tm1.p2+'</div></div>'
+      +     '<div class="match-vs">VS</div>'
+      +     '<div class="match-team"><div class="match-team-name">'+tm2.name+'</div><div class="match-team-players">'+tm2.p1+' & '+tm2.p2+'</div></div>'
+      +   '</div>'
+      +   '<div class="match-score">'
+      +     '<input class="score-input" type="number" min="0" max="99" value="'+(scored?m.s1:'')+'" placeholder="0" id="sc-'+m.id+'-1">'
+      +     '<span class="score-sep">–</span>'
+      +     '<input class="score-input" type="number" min="0" max="99" value="'+(scored?m.s2:'')+'" placeholder="0" id="sc-'+m.id+'-2">'
+      +     '<button class="score-done" onclick="saveMatchScore('+m.id+')">✓ Save</button>'
+      +   '</div>'
+      +   resultHTML
+      + '</div></div>';
+  });
+
+  return '<div class="t-card" style="margin-bottom:14px"><div class="t-card-hdr"><h3>Standings</h3><span style="font-size:.8rem;color:var(--mid)">'+played+'/'+total+' played</span></div>'
+    + '<div class="t-card-body">'+standHTML+'</div></div>'
+    + (allDone && !t.sf && t.teams.length >= 4
+        ? '<button class="btn btn-lime" style="width:100%;justify-content:center;margin-bottom:16px" onclick="doSeedSemis()">▶ Generate Semi-finals from Top 4</button>'
+        : '')
+    + (t.teams.length < 4 && allDone ? '<p style="font-size:.82rem;color:var(--mid);margin-bottom:14px">Need at least 4 teams for knockout stage.</p>' : '')
+    + (t.sf ? '<div style="margin-bottom:16px"><button class="btn btn-green btn-sm" data-phase="knockout">View Knockout Stage →</button></div>' : '')
+    + '<div class="t-card"><div class="t-card-hdr"><h3>Games</h3></div><div class="t-card-body">'+matchesHTML+'</div></div>';
+}
+
+// ── Knockout ───────────────────────────────────────────────────────────────
+function renderKnockout(t) {
+  if (!t.sf) return '<p style="color:var(--mid)">Complete the round robin first.</p>';
+
+  var sf1 = t.sf[0], sf2 = t.sf[1];
+  var w1 = sf1.s1 !== null ? sfWinner(t,'sf1') : null;
+  var w2 = sf2.s1 !== null ? sfWinner(t,'sf2') : null;
+
+  if (w1 && w2 && (!t.final.t1 || !t.final.t2)) {
+    t.final.t1 = w1; t.final.t2 = w2; save();
+  }
+
+  var champion = (t.final && t.final.s1 !== null)
+    ? getTeam(t, parseInt(t.final.s1) >= parseInt(t.final.s2) ? t.final.t1 : t.final.t2)
+    : null;
+
+  var winnerBanner = champion
+    ? '<div class="winner-banner"><div class="trophy">🏆</div><h2>'+champion.name+'</h2>'
+      + '<p>'+champion.p1+' & '+champion.p2+'</p>'
+      + '<p style="margin-top:6px;font-size:.8rem;opacity:.8">Tournament Champions!</p></div>'
+    : '';
+
+  function koMatch(m, label) {
+    var tm1 = m.t1 ? getTeam(t, m.t1) : null;
+    var tm2 = m.t2 ? getTeam(t, m.t2) : null;
+    var done = m.s1 !== null;
+    var wId = done ? (parseInt(m.s1) >= parseInt(m.s2) ? m.t1 : m.t2) : null;
+    var scoreRow = '';
+    if (tm1 && tm2) {
+      scoreRow = '<div class="match-score">'
+        + '<input class="score-input" type="number" min="0" max="99" value="'+(done?m.s1:'')+'" placeholder="0" id="sc-'+m.id+'-1">'
+        + '<span class="score-sep">–</span>'
+        + '<input class="score-input" type="number" min="0" max="99" value="'+(done?m.s2:'')+'" placeholder="0" id="sc-'+m.id+'-2">'
+        + '<button class="score-done" onclick="saveKOScore(\''+m.id+'\')">✓ Save</button>'
+        + '</div>'
+        + (done ? '<div class="match-result res-win1" style="margin-top:8px">'+tName(t,wId)+' win · '+m.s1+'–'+m.s2+'</div>' : '');
+    }
+    return '<div class="match-card">'
+      + '<div class="match-hdr"><span>'+label+'</span>'+(done?'<span style="color:#2E7D32">✓ Done</span>':'')+'</div>'
+      + '<div class="match-body">'
+      +   '<div class="match-teams">'
+      +     '<div class="match-team"><div class="match-team-name">'+(tm1?tm1.name:'TBD')+'</div><div class="match-team-players">'+(tm1?tm1.p1+' & '+tm1.p2:'waiting...')+'</div></div>'
+      +     '<div class="match-vs">VS</div>'
+      +     '<div class="match-team"><div class="match-team-name">'+(tm2?tm2.name:'TBD')+'</div><div class="match-team-players">'+(tm2?tm2.p1+' & '+tm2.p2:'waiting...')+'</div></div>'
+      +   '</div>'
+      +   scoreRow
+      + '</div></div>';
+  }
+
+  return winnerBanner
+    + '<div class="t-card" style="margin-bottom:14px"><div class="t-card-hdr"><h3>Semi-finals</h3></div>'
+    + '<div class="t-card-body">'
+    + koMatch(sf1, 'SF1 · Seed 1 vs Seed 4')
+    + koMatch(sf2, 'SF2 · Seed 2 vs Seed 3')
+    + '</div></div>'
+    + '<div class="t-card"><div class="t-card-hdr"><h3>Final</h3></div>'
+    + '<div class="t-card-body">'
+    + koMatch(t.final, 'Final')
+    + '</div></div>';
+}
+
+// ── Tournament Actions ─────────────────────────────────────────────────────
+function openNewTournament() {
+  document.getElementById('t-name').value = '';
+  document.getElementById('t-date').value = new Date().toISOString().split('T')[0];
+  openModal('m-tournament');
+}
+
+function createTournament() {
+  var name = document.getElementById('t-name').value.trim();
+  if (!name) { showToast('Enter a name'); return; }
+  var date = document.getElementById('t-date').value;
+  S.tournaments.push({ id: Date.now(), name, date, teams: [], rrMatches: [], sf: null, final: null, phase: 'setup' });
+  save(); closeModal('m-tournament'); renderTournament(); showToast('Tournament created 🏆');
+}
+
+function doDeleteTournament() {
+  var t = activeTournament();
+  if (!t) return;
+  showConfirm('Delete "'+t.name+'"?', 'All teams and scores will be lost.', function() {
+    S.tournaments = S.tournaments.filter(function(x){ return x.id !== t.id; });
+    save(); renderTournament(); showToast('Tournament deleted');
+  });
+}
+
+function openAddTeam() {
+  document.getElementById('tm-name').value = '';
+  document.getElementById('tm-p1').value = '';
+  document.getElementById('tm-p2').value = '';
+  openModal('m-team');
+}
+
+function addTeam() {
+  var t = activeTournament();
+  if (!t) return;
+  if (t.phase !== 'setup') { showToast('Cannot add teams after round robin starts'); return; }
+  var name = document.getElementById('tm-name').value.trim();
+  var p1   = document.getElementById('tm-p1').value.trim();
+  var p2   = document.getElementById('tm-p2').value.trim();
+  if (!name || !p1 || !p2) { showToast('Fill in all fields'); return; }
+  t.teams.push({ id: Date.now(), name, p1, p2 });
+  save(); closeModal('m-team'); renderTournament(); showToast(name+' added ✅');
+}
+
+function doDeleteTeam(tid) {
+  var t = activeTournament();
+  if (!t || t.phase !== 'setup') return;
+  var id = parseInt(tid);
+  var tm = t.teams.find(function(x){ return x.id === id; });
+  if (!tm) return;
+  showConfirm('Remove "'+tm.name+'"?', 'Team will be removed from the tournament.', function() {
+    t.teams = t.teams.filter(function(x){ return x.id !== id; });
+    save(); renderTournament(); showToast(tm.name+' removed');
+  });
+}
+
+function startRoundRobin() {
+  var t = activeTournament();
+  if (!t || t.teams.length < 3) { showToast('Need at least 3 teams'); return; }
+  t.rrMatches = generateRoundRobin(t.teams);
+  t.phase = 'roundrobin';
+  save(); renderTournament(); showToast('Round robin started! '+t.rrMatches.length+' games generated.');
+}
+
+function saveMatchScore(mid) {
+  var t = activeTournament();
+  if (!t) return;
+  var m = t.rrMatches.find(function(x){ return x.id === mid; });
+  if (!m) return;
+  var v1 = document.getElementById('sc-'+mid+'-1').value;
+  var v2 = document.getElementById('sc-'+mid+'-2').value;
+  if (v1 === '' || v2 === '') { showToast('Enter both scores'); return; }
+  m.s1 = parseInt(v1); m.s2 = parseInt(v2);
+  save(); renderTournament(); showToast('Score saved ✓');
+}
+
+function doSeedSemis() {
+  var t = activeTournament();
+  if (!t || !rrComplete(t)) { showToast('Score all games first'); return; }
+  seedSemis(t);
+  renderTournament();
+  showToast('Semi-finals seeded! Top 4 teams advance.');
+}
+
+function saveKOScore(mid) {
+  var t = activeTournament();
+  if (!t) return;
+  var m = null;
+  if (mid === 'sf1' || mid === 'sf2') m = t.sf.find(function(x){ return x.id === mid; });
+  if (mid === 'final') m = t.final;
+  if (!m) return;
+  var v1 = document.getElementById('sc-'+mid+'-1').value;
+  var v2 = document.getElementById('sc-'+mid+'-2').value;
+  if (v1 === '' || v2 === '') { showToast('Enter both scores'); return; }
+  m.s1 = parseInt(v1); m.s2 = parseInt(v2);
+  if (t.sf && t.sf.every(function(sf){ return sf.s1 !== null; })) {
+    t.final.t1 = sfWinner(t, 'sf1');
+    t.final.t2 = sfWinner(t, 'sf2');
+  }
+  save(); renderTournament(); showToast('Score saved ✓');
+}
+
+// Init
+renderSessions();
+const _ai = feeAlert();
+if (_ai.alert) setTimeout(()=>showToast('⚠️ Pool balance low — check Finance'), 1200);
+</script>
+</body>
+</html>
