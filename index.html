@@ -266,20 +266,24 @@ nav{background:linear-gradient(135deg,#0A1018 0%,#0F1923 60%,#140800 100%);borde
 <nav>
   <button onclick="showView('sessions',document.querySelector('.nav-tab'))" style="background:none;border:none;cursor:pointer;display:flex;align-items:center;gap:10px;padding:4px 0"><svg width="42" height="42" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"><defs><radialGradient id="bgGrad" cx="50%" cy="50%" r="50%"><stop offset="0%" stop-color="#1a2a1a"/><stop offset="100%" stop-color="#0a0f0a"/></radialGradient><linearGradient id="goldGrad" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#F0C040"/><stop offset="100%" stop-color="#C88000"/></linearGradient><linearGradient id="flameGrad" x1="0%" y1="100%" x2="0%" y2="0%"><stop offset="0%" stop-color="#C0200A"/><stop offset="50%" stop-color="#E05A00"/><stop offset="100%" stop-color="#F0C040"/></linearGradient></defs><!-- Shield body --><path d="M100 8 L18 38 L18 110 Q18 168 100 192 Q182 168 182 110 L182 38 Z" fill="url(#bgGrad)" stroke="url(#goldGrad)" stroke-width="4"/><!-- Red inner border --><path d="M100 18 L28 44 L28 110 Q28 160 100 180 Q172 160 172 110 L172 44 Z" fill="none" stroke="#C0200A" stroke-width="2.5" opacity="0.7"/><!-- Left flame --><path d="M28 130 Q15 110 20 85 Q25 100 30 95 Q22 115 35 130 Z" fill="url(#flameGrad)" opacity="0.9"/><path d="M22 140 Q8 115 14 82 Q20 100 26 92 Q16 120 30 140 Z" fill="url(#flameGrad)" opacity="0.7"/><!-- Right flame --><path d="M172 130 Q185 110 180 85 Q175 100 170 95 Q178 115 165 130 Z" fill="url(#flameGrad)" opacity="0.9"/><path d="M178 140 Q192 115 186 82 Q180 100 174 92 Q184 120 170 140 Z" fill="url(#flameGrad)" opacity="0.7"/><!-- Badminton player silhouette (simplified) --><!-- Body --><ellipse cx="110" cy="62" rx="8" ry="10" fill="#F5EDD8" opacity="0.9"/><!-- Head --><circle cx="110" cy="48" r="8" fill="#F5EDD8" opacity="0.9"/><!-- Arm up with racket --><line x1="108" y1="58" x2="88" y2="38" stroke="#F5EDD8" stroke-width="4" stroke-linecap="round" opacity="0.9"/><!-- Racket frame --><ellipse cx="82" cy="33" rx="11" ry="14" fill="none" stroke="#D4A017" stroke-width="2.5" transform="rotate(-30 82 33)"/><!-- Racket handle --><line x1="90" y1="42" x2="100" y2="55" stroke="#F5EDD8" stroke-width="3" stroke-linecap="round" opacity="0.8"/><!-- Shuttlecock --><circle cx="64" cy="22" r="4" fill="#F5EDD8" opacity="0.9"/><line x1="64" y1="22" x2="58" y2="12" stroke="#F5EDD8" stroke-width="1.5" opacity="0.8"/><line x1="64" y1="22" x2="64" y2="11" stroke="#F5EDD8" stroke-width="1.5" opacity="0.8"/><line x1="64" y1="22" x2="70" y2="12" stroke="#F5EDD8" stroke-width="1.5" opacity="0.8"/><!-- Legs --><line x1="110" y1="72" x2="100" y2="95" stroke="#F5EDD8" stroke-width="4" stroke-linecap="round" opacity="0.9"/><line x1="110" y1="72" x2="125" y2="88" stroke="#F5EDD8" stroke-width="4" stroke-linecap="round" opacity="0.9"/><!-- Gold divider line --><line x1="40" y1="105" x2="160" y2="105" stroke="url(#goldGrad)" stroke-width="1.5" opacity="0.6"/><!-- SOUTHERN text --><text x="100" y="122" font-family="Bebas Neue,sans-serif" font-size="22" fill="url(#goldGrad)" text-anchor="middle" letter-spacing="3">SOUTHERN</text><!-- SMASHERS text --><text x="100" y="145" font-family="Bebas Neue,sans-serif" font-size="26" fill="url(#goldGrad)" text-anchor="middle" letter-spacing="2">SMASHERS</text><!-- Stars --><text x="73" y="163" font-family="sans-serif" font-size="12" fill="#D4A017">★</text><text x="91" y="163" font-family="sans-serif" font-size="12" fill="#D4A017">★</text><text x="109" y="163" font-family="sans-serif" font-size="12" fill="#D4A017">★</text><text x="127" y="163" font-family="sans-serif" font-size="12" fill="#D4A017">★</text><!-- Bottom shield point gold accent --><path d="M85 178 Q100 192 115 178 Q100 188 85 178 Z" fill="#D4A017" opacity="0.6"/></svg><div style="line-height:1.1"><div style="font-family:'Bebas Neue',cursive;font-size:1.15rem;color:#D4A017;letter-spacing:.14em;text-shadow:0 0 12px rgba(212,160,23,.4)">SOUTHERN SMASHERS</div></div></button>
   <div class="nav-tabs">
-    <button class="nav-tab active" onclick="showView('sessions',this)" title="Sessions">
-      <span class="tab-icon">🏸</span><span class="tab-label">Sessions</span>
-    </button>
-    <button class="nav-tab" onclick="showView('rsvp',this)" title="RSVP">
+    <button class="nav-tab" data-view="rsvp" onclick="showView('rsvp',this)" title="RSVP">
       <span class="tab-icon">✅</span><span class="tab-label">RSVP</span>
     </button>
-    <button class="nav-tab" onclick="showView('finance',this)" title="Finance">
+    <button class="nav-tab" data-view="sessions" onclick="showView('sessions',this)" title="Sessions">
+      <span class="tab-icon">🏸</span><span class="tab-label">Sessions</span>
+    </button>
+    <button class="nav-tab" data-view="finance" onclick="showView('finance',this)" title="Finance">
       <span class="tab-icon">💰</span><span class="tab-label">Finance</span>
     </button>
-    <button class="nav-tab vll-tab" onclick="showView('tournament',this)" title="Vera Level League">
+    <button class="nav-tab" data-view="shuttles" onclick="showView('shuttles',this)" title="Shuttles">
+      <span class="tab-icon">🪶</span><span class="tab-label">Shuttles</span>
+    </button>
+    <button class="nav-tab vll-tab" data-view="tournament" onclick="showView('tournament',this)" title="Vera Level League">
       <span class="tab-icon">🎬</span><span class="tab-label">VLL</span>
     </button>
   </div>
 </nav>
+<div id="share-strip" style="display:none;background:#0A1018;padding:4px 14px;align-items:center;border-bottom:1px solid #2C3E52;"></div>
 
 <div id="view-sessions" class="view active">
   <div class="page-hdr">
@@ -301,6 +305,11 @@ nav{background:linear-gradient(135deg,#0A1018 0%,#0F1923 60%,#140800 100%);borde
 </div>
 
 
+<div id="view-shuttles" class="view">
+  <div class="page-hdr"><div><h1>🪶 Shuttles</h1></div></div>
+  <div id="shuttles-content"></div>
+</div>
+
 <div id="view-tournament" class="view">
   <div id="tournament-content"></div>
 </div>
@@ -317,7 +326,7 @@ nav{background:linear-gradient(135deg,#0A1018 0%,#0F1923 60%,#140800 100%);borde
 <div class="overlay" id="m-pin">
   <div class="modal" style="max-width:320px;text-align:center">
     <h3>🔐 Admin Access</h3>
-    <p style="font-size:.85rem;color:var(--mid);margin-bottom:18px">Enter PIN to manage sessions & finances</p>
+    <p style="font-size:.85rem;color:var(--mid);margin-bottom:18px">Enter PIN to unlock <strong id="pin-context-label">Sessions</strong></p>
     <div class="frow">
       <input type="password" id="pin-input" placeholder="Enter PIN" style="text-align:center;font-size:1.4rem;letter-spacing:.3em" maxlength="8" onkeydown="if(event.key==='Enter')submitPin()">
     </div>
@@ -420,11 +429,14 @@ nav{background:linear-gradient(135deg,#0A1018 0%,#0F1923 60%,#140800 100%);borde
 <!-- SHUTTLE COST MODAL -->
 <div class="overlay" id="m-shuttle">
   <div class="modal">
-    <h3>🪶 Add Shuttle Cost</h3>
+    <h3>🪶 Add Shuttle Purchase</h3>
     <div class="frow"><label>Date</label><input type="date" id="sc-date"></div>
-    <div class="frow"><label>Description</label><input type="text" id="sc-desc" placeholder="e.g. 6× RSL feather tubes"></div>
-    <div class="frow"><label>Amount (A$)</label><input type="number" id="sc-amount" placeholder="0.00" min="0" step="0.50"></div>
-    <p style="font-size:0.78rem;color:var(--mid);margin-bottom:6px">Split equally across all permanent members.</p>
+    <div class="frow"><label>Description</label><input type="text" id="sc-desc" placeholder="e.g. RSL feather tubes"></div>
+    <div class="fgrid">
+      <div class="frow"><label>No. of Tubes</label><input type="number" id="sc-tubes" value="6" min="1" step="1"></div>
+      <div class="frow"><label>Total Cost (A$)</label><input type="number" id="sc-amount" placeholder="0.00" min="0" step="0.50"></div>
+    </div>
+    <p style="font-size:0.78rem;color:var(--mid);margin-bottom:6px">Cost split equally across permanent members in Finance.</p>
     <div class="modal-btns">
       <button class="btn btn-ghost" onclick="closeModal('m-shuttle')">Cancel</button>
       <button class="btn btn-lime" onclick="saveShuttle()">Add</button>
@@ -480,7 +492,11 @@ nav{background:linear-gradient(135deg,#0A1018 0%,#0F1923 60%,#140800 100%);borde
 // ============================================================
 const SUPABASE_URL = 'https://goegqodxnqmqfuhqqwje.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdvZWdxb2R4bnFtcWZ1aHFxd2plIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY3OTM0MzcsImV4cCI6MjEwMjM2OTQzN30.qC-7tyI2OoIMl-boW7f-NtWz63AUgMdacQ6uUeWo7Mw';
-const ADMIN_PIN    = '2055';
+// PINs loaded from Supabase settings table at boot
+let PINS = { sessions: '2055', finance: '2055' };
+let _sessionUnlocked = false;
+let _financeUnlocked = false;
+let _pendingPinContext = null; // 'sessions' | 'finance'
 const CASUAL_FEE   = 10;
 
 // ── Supabase REST helper ───────────────────────────────────────────────────
@@ -512,14 +528,20 @@ let S = {
   financeQuarter: currentQuarter()
 };
 
-let _adminUnlocked = false;
+// PIN state managed per-context above
 let _loading = true;
 
 // ── PIN GATE ──────────────────────────────────────────────────────────────
-function requireAdmin(fn) {
-  if (_adminUnlocked) { fn(); return; }
+function requirePin(context, fn) {
+  if (context === 'sessions' && _sessionUnlocked) { fn(); return; }
+  if (context === 'finance'  && _financeUnlocked)  { fn(); return; }
+  _pendingPinContext = context;
+  document.getElementById('pin-context-label').textContent =
+    context === 'sessions' ? 'Sessions & Tournaments' : 'Finance';
   showPinModal(fn);
 }
+// legacy alias used by existing code
+function requireAdmin(fn) { requirePin('sessions', fn); }
 
 function showPinModal(onSuccess) {
   document.getElementById('pin-input').value = '';
@@ -530,12 +552,15 @@ function showPinModal(onSuccess) {
 
 function submitPin() {
   const val = document.getElementById('pin-input').value.trim();
-  if (val === ADMIN_PIN) {
-    _adminUnlocked = true;
+  const ctx = _pendingPinContext || 'sessions';
+  const correct = ctx === 'finance' ? PINS.finance : PINS.sessions;
+  if (val === correct) {
+    if (ctx === 'sessions') _sessionUnlocked = true;
+    if (ctx === 'finance')  _financeUnlocked = true;
     closeModal('m-pin');
     const cb = document.getElementById('m-pin').__callback;
     if (cb) cb();
-    showToast('Admin unlocked 🔓');
+    showToast((ctx === 'finance' ? 'Finance' : 'Sessions') + ' unlocked 🔓');
   } else {
     document.getElementById('pin-error').style.display = 'block';
     document.getElementById('pin-input').value = '';
@@ -552,20 +577,25 @@ function setLoading(on) {
 async function boot() {
   setLoading(true);
   try {
-    const [members, sessions, feePayments, sessionCosts, shuttleCosts, tournaments] = await Promise.all([
+    const [members, sessions, feePayments, sessionCosts, shuttleCosts, tournaments, appSettings] = await Promise.all([
       sb('members?order=name'),
       sb('sessions?order=date'),
       sb('fee_payments?order=id'),
       sb('session_costs?order=session_id'),
       sb('shuttle_costs?order=date'),
       sb('tournaments?order=id'),
+      sb('app_settings?order=key'),
     ]);
 
     // sessions need their players loaded too
+    // Load PINs from settings
+    if (appSettings) {
+      appSettings.forEach(r => { if(r.key==='pin_sessions')PINS.sessions=r.value; if(r.key==='pin_finance')PINS.finance=r.value; });
+    }
     S.members      = members || [];
     S.feePayments  = feePayments || [];
     S.shuttleCosts = (shuttleCosts || []).map(c => ({
-      ...c, desc: c.description||c.desc||'', month: (c.date||'').slice(0,7)
+      ...c, desc: c.description||c.desc||'', month: (c.date||'').slice(0,7), tubes: c.tubes||0
     }));
     S.tournaments  = (tournaments || []).map(t => ({
       ...t,
@@ -598,7 +628,7 @@ async function boot() {
 
     if (!S.financeQuarter) S.financeQuarter = currentQuarter();
     setLoading(false);
-    renderSessions();
+    applyRole();
   } catch(e) {
     setLoading(false);
     showToast('Failed to load data — check connection');
@@ -800,7 +830,8 @@ function showView(name,btn){
   if(btn) btn.classList.add('active');
   if(name==='sessions')    renderSessions();
   if(name==='rsvp')        renderRSVP();
-  if(name==='finance')     requireAdmin(renderFinance);
+  if(name==='finance')     requirePin('finance', renderFinance);
+  if(name==='shuttles')    requirePin('finance', renderShuttles);
   if(name==='tournament')  renderTournament();
 }
 
@@ -883,6 +914,7 @@ function doReopenSession(id){
   });
 }
 async function doRemovePlayer(sessionId,playerRowId){
+  if(!_sessionUnlocked){requirePin('sessions',()=>doRemovePlayer(sessionId,playerRowId));return;}
   const s=S.sessions.find(x=>x.id===sessionId);
   if(!s)return;
   const p=s.players.find(x=>(x.player_row_id||x.id)===playerRowId);
@@ -1009,6 +1041,8 @@ function renderRSVP(){
   let memberOptions=S.members.map(m=>'<option value="'+m.id+'">'+m.name+' ('+(m.type==='permanent'?'Permanent':'Casual')+')</option>').join('');
   let goingChips=going.map(p=>'<div class="chip going"><div class="av">'+initials(p.name)+'</div>'+p.name+'</div>').join('');
   let maybeChips=maybe.map(p=>'<div class="chip maybe"><div class="av">'+initials(p.name)+'</div>'+p.name+'</div>').join('');
+  const notgoing=s.players.filter(p=>p.status==='notgoing');
+  let notgoingChips=notgoing.map(p=>'<div class="chip notgoing"><div class="av">'+initials(p.name)+'</div>'+p.name+'</div>').join('');
   let upcomingHTML='';
   if(open.length>1){
     upcomingHTML='<div class="rsvp-card"><h3>Upcoming</h3>';
@@ -1024,8 +1058,9 @@ function renderRSVP(){
     +'<button class="btn btn-lime" style="width:100%;justify-content:center" onclick="submitRSVP('+s.id+')">Confirm RSVP</button></div>'
     +'<div class="rsvp-card"><h3 style="font-family:Bebas Neue,cursive;color:#D4A017;letter-spacing:.05em;font-size:1.1rem">Attendance · '+going.length+'/'+s.maxPlayers+(spots?' · '+spots+' spot'+(spots>1?'s':'')+' left':' · FULL')+'</h3>'
     +'<div class="fill-bar" style="border-radius:6px;margin-bottom:13px"><div class="fill-bar-inner" style="width:'+fill+'%"></div></div>'
-    +(going.length?'<div class="sec-lbl">✅ Going</div><div class="chips">'+goingChips+'</div>':'')
-    +(maybe.length?'<div class="sec-lbl" style="margin-top:9px">🤔 Maybe</div><div class="chips">'+maybeChips+'</div>':'')
+    +(going.length?'<div class="sec-lbl">✅ Going ('+going.length+')</div><div class="chips">'+goingChips+'</div>':'')
+    +(maybe.length?'<div class="sec-lbl" style="margin-top:9px">🤔 Maybe ('+maybe.length+')</div><div class="chips">'+maybeChips+'</div>':'')
+    +(notgoing.length?'<div class="sec-lbl" style="margin-top:9px">❌ Not going ('+notgoing.length+')</div><div class="chips">'+notgoingChips+'</div>':'')
     +'</div>'+upcomingHTML;
   _rsvpStatus='going';
 }
@@ -1127,14 +1162,7 @@ function renderFinance(){
     });
     sessionCostRows+='</tbody></table></div>';
   }
-  const shuttleEntries=S.shuttleCosts.filter(c=>months.includes(c.month));
-  let shuttleRows='';
-  if(!shuttleEntries.length){shuttleRows='<p style="color:var(--mid);font-size:.83rem">No shuttle costs this quarter</p>';}
-  else{
-    shuttleRows='<table class="tbl" style="margin-bottom:9px"><thead><tr><th>Date</th><th>Description</th><th>Amount</th><th></th></tr></thead><tbody>';
-    shuttleEntries.forEach(c=>{shuttleRows+='<tr><td style="font-size:.8rem;white-space:nowrap">'+c.date+'</td><td>'+c.desc+'</td><td style="font-weight:600">A$'+c.amount.toFixed(2)+'</td><td><button class="btn btn-red btn-sm" style="padding:3px 7px" onclick="doDeleteShuttle('+(c.db_id||c.id)+')">✕</button></td></tr>';});
-    shuttleRows+='</tbody></table><div style="text-align:right;font-size:.82rem;font-weight:600;color:#D4A017">Total: A$'+shuttleTotal.toFixed(2)+' · Per member: A$'+(shuttleTotal/permCount).toFixed(2)+'</div>';
-  }
+  // shuttle rows now in Shuttles tab
   let memberRows='';
   mRows.forEach(m=>{
     const bc=m.runBal>0.005?'bal-pos':m.runBal<-0.005?'bal-neg':'bal-zero';
@@ -1149,7 +1177,6 @@ function renderFinance(){
     +'<div style="display:flex;align-items:center;gap:10px;margin-bottom:18px;flex-wrap:wrap"><label style="font-size:.78rem;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--mid)">Quarter</label><select style="padding:7px 11px;border:1.5px solid var(--border);border-radius:8px;font-family:Inter,sans-serif;font-size:.86rem;background:#0F1923;color:#F5EDD8;outline:none" onchange="S.financeQuarter=this.value;renderFinance()">'+qOpts+'</select><button class="btn btn-ghost btn-sm" onclick="doOpenCollectFees(\''+q+'\')">💰 Collect Fees</button></div>'
     +'<div class="fin-card"><h3>📊 '+quarterLabel(q)+'</h3><div class="fin-grid"><div class="fin-stat"><div class="num" style="color:#D4A017">A$'+feesThisQ.toFixed(2)+'</div><div class="lbl">Fees Collected</div></div><div class="fin-stat"><div class="num" style="color:#D4A017">A$'+casualIncome.toFixed(2)+'</div><div class="lbl">Casual Income</div></div><div class="fin-stat"><div class="num" style="color:#D4A017">A$'+allCosts.toFixed(2)+'</div><div class="lbl">Total Costs</div></div><div class="fin-stat"><div class="num" style="color:'+(poolBal>=0?'#D4A017':'var(--red)')+'">A$'+poolBal.toFixed(2)+'</div><div class="lbl">Pool Balance</div></div></div><div style="font-size:.8rem;color:var(--mid)">Court: <strong>A$'+courtTotal.toFixed(2)+'</strong> · Shuttles: <strong>A$'+shuttleTotal.toFixed(2)+'</strong> · '+sessions.length+' session'+(sessions.length!==1?'s':'')+' this quarter</div></div>'
     +'<div class="fin-card"><h3>🏟️ Session Court Costs</h3>'+sessionCostRows+'</div>'
-    +'<div class="fin-card"><div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:13px"><h3 style="margin:0">🪶 Shuttle Costs</h3><button class="btn btn-ghost btn-sm" onclick="doOpenShuttle()">＋ Add</button></div>'+shuttleRows+'</div>'
     +'<div class="fin-card"><div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:13px"><h3 style="margin:0">👥 Member Balances</h3><button class="btn btn-ghost btn-sm" onclick="openAddMember()">＋ Add Member</button></div><div style="overflow-x:auto"><table class="tbl"><thead><tr><th>Name</th><th>Type</th><th>Q Fee Paid</th><th>Q Cost</th><th>Running Balance</th><th></th></tr></thead><tbody>'+memberRows+'</tbody></table></div><div style="margin-top:11px;font-size:.78rem;color:var(--mid)">💡 <strong>Permanent:</strong> charged their share of all court & shuttle costs regardless of attendance. <strong>Casual:</strong> A$'+CASUAL_FEE+' per session attended. Running balance carries over.</div></div>';
 }
 
@@ -1200,8 +1227,11 @@ async function saveShuttle(){
   if(!date||isNaN(amount)||amount<=0){showToast('Enter a valid date and amount');return;}
   setLoading(true);
   try{
-    const rows=await sb('shuttle_costs','POST',{date,description:desc,amount});
-    S.shuttleCosts.push({db_id:rows[0].id,id:rows[0].id,date,month:date.slice(0,7),desc,amount});
+    const tubes=parseInt(document.getElementById('sc-tubes').value)||0;
+    const rows=await sb('shuttle_costs','POST',{date,description:desc,amount,tubes});
+
+    const tubes2=parseInt(document.getElementById('sc-tubes').value)||0;
+    S.shuttleCosts.push({db_id:rows[0].id,id:rows[0].id,date,month:date.slice(0,7),desc,amount,tubes:tubes2});
     S.financeQuarter=dateToQuarter(date);
     closeModal('m-shuttle'); renderFinance(); showToast('Shuttle cost added: A$'+amount.toFixed(2)+' ✅');
   }catch(e){showToast('Error adding shuttle cost');}
@@ -1456,6 +1486,178 @@ function saveKOScore(mid){
   saveTournament(t);renderTournament();showToast('Score saved ✓');
 }
 
+
+// ══════════════════════════════════════════════════════════════
+// SHUTTLES TAB
+// ══════════════════════════════════════════════════════════════
+// S.shuttleCosts = purchases (tubes bought, cost)
+// S.shuttleUsage = usage logs (date, tubes_opened, session_id optional)
+// Stock = sum(purchased tubes) - sum(tubes_opened)
+
+async function loadShuttleUsage() {
+  if (S.shuttleUsage) return;
+  try {
+    const rows = await sb('shuttle_usage?order=date.desc');
+    S.shuttleUsage = rows || [];
+  } catch(e) { S.shuttleUsage = []; }
+}
+
+async function renderShuttles() {
+  await loadShuttleUsage();
+  const el = document.getElementById('shuttles-content');
+
+  // Stock calculation
+  const totalBought = S.shuttleCosts.reduce((a,c) => a + (c.tubes||0), 0);
+  const totalUsed   = (S.shuttleUsage||[]).reduce((a,u) => a + (u.tubes_opened||0), 0);
+  const stockLeft   = totalBought - totalUsed;
+  const stockPct    = totalBought > 0 ? Math.min(100, Math.round(stockLeft/totalBought*100)) : 0;
+  const stockColor  = stockLeft <= 3 ? 'var(--red)' : stockLeft <= 8 ? '#E05A00' : '#D4A017';
+
+  // Purchase history
+  const purchaseRows = [...S.shuttleCosts].sort((a,b)=>b.date.localeCompare(a.date)).map(c =>
+    '<tr><td style="font-size:.8rem;white-space:nowrap">'+c.date+'</td>'
+    +'<td>'+c.desc+'</td>'
+    +'<td style="text-align:center;font-weight:600;color:#D4A017">'+(c.tubes||0)+'</td>'
+    +'<td style="font-weight:600">A$'+c.amount.toFixed(2)+'</td>'
+    +'<td style="font-size:.78rem;color:#8A9AB0">'+(c.tubes&&c.amount?(c.amount/c.tubes).toFixed(2):'—')+'</td>'
+    +'<td><button class="btn btn-red btn-sm" style="padding:3px 7px" onclick="doDeleteShuttle('+(c.db_id||c.id)+')">✕</button></td>'
+    +'</tr>'
+  ).join('');
+
+  // Usage history
+  const usageRows = [...(S.shuttleUsage||[])].sort((a,b)=>b.date.localeCompare(a.date)).map(u =>
+    '<tr><td style="font-size:.8rem;white-space:nowrap">'+u.date+'</td>'
+    +'<td style="text-align:center;font-weight:700;color:#E05A00">'+u.tubes_opened+'</td>'
+    +'<td style="font-size:.8rem;color:#8A9AB0">'+(u.notes||'—')+'</td>'
+    +'<td><button class="btn btn-red btn-sm" style="padding:3px 7px" onclick="doDeleteUsage('+u.id+')">✕</button></td>'
+    +'</tr>'
+  ).join('');
+
+  el.innerHTML =
+    // Stock summary card
+    '<div class="fin-card">'
+    +'<h3>📦 Stock Summary</h3>'
+    +'<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:14px">'
+    +'<div class="fin-stat"><div class="num" style="color:#D4A017">'+totalBought+'</div><div class="lbl">Tubes Bought</div></div>'
+    +'<div class="fin-stat"><div class="num" style="color:#E05A00">'+totalUsed+'</div><div class="lbl">Tubes Used</div></div>'
+    +'<div class="fin-stat"><div class="num" style="color:'+stockColor+'">'+stockLeft+'</div><div class="lbl">In Stock</div></div>'
+    +'</div>'
+    +'<div style="margin-bottom:6px;font-size:.75rem;color:#8A9AB0;display:flex;justify-content:space-between"><span>Stock level</span><span style="color:'+stockColor+'">'+stockPct+'%</span></div>'
+    +'<div class="fill-bar" style="border-radius:6px"><div class="fill-bar-inner" style="width:'+stockPct+'%;background:linear-gradient(90deg,'+stockColor+',#F0C040)"></div></div>'
+    +(stockLeft <= 3 ? '<div style="margin-top:10px;padding:8px 12px;background:rgba(192,32,10,.15);border:1px solid var(--red);border-radius:8px;font-size:.82rem;color:var(--red)">⚠️ Low stock — order more shuttles soon!</div>' : '')
+    +'</div>'
+
+    // Log usage card
+    +'<div class="fin-card">'
+    +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:13px">'
+    +'<h3 style="margin:0">📋 Log Usage</h3>'
+    +'</div>'
+    +'<div style="display:grid;grid-template-columns:1fr 80px 1fr auto;gap:8px;align-items:end;margin-bottom:8px">'
+    +'<div><label style="font-size:.72rem;color:#8A9AB0;font-weight:600;text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:4px">Date</label>'
+    +'<input type="date" id="u-date" value="'+new Date().toISOString().split('T')[0]+'" style="width:100%;padding:8px;border:1.5px solid #2C3E52;border-radius:7px;background:#0F1923;color:#F5EDD8;font-size:.85rem;outline:none"></div>'
+    +'<div><label style="font-size:.72rem;color:#8A9AB0;font-weight:600;text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:4px">Tubes</label>'
+    +'<input type="number" id="u-tubes" min="1" max="20" value="1" style="width:100%;padding:8px;border:1.5px solid #2C3E52;border-radius:7px;background:#0F1923;color:#F5EDD8;font-size:.85rem;text-align:center;outline:none"></div>'
+    +'<div><label style="font-size:.72rem;color:#8A9AB0;font-weight:600;text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:4px">Notes (optional)</label>'
+    +'<input type="text" id="u-notes" placeholder="e.g. Regular session" style="width:100%;padding:8px;border:1.5px solid #2C3E52;border-radius:7px;background:#0F1923;color:#F5EDD8;font-size:.85rem;outline:none"></div>'
+    +'<button class="btn btn-lime" onclick="saveUsage()" style="margin-bottom:0;white-space:nowrap">+ Log</button>'
+    +'</div>'
+    +'</div>'
+
+    // Purchase history
+    +'<div class="fin-card">'
+    +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:13px">'
+    +'<h3 style="margin:0">🛒 Purchases</h3>'
+    +'<button class="btn btn-ghost btn-sm" onclick="doOpenShuttle()">＋ Add Purchase</button>'
+    +'</div>'
+    +(S.shuttleCosts.length
+      ? '<div style="overflow-x:auto"><table class="tbl"><thead><tr><th>Date</th><th>Description</th><th style="text-align:center">Tubes</th><th>Cost</th><th>$/tube</th><th></th></tr></thead><tbody>'+purchaseRows+'</tbody></table></div>'
+      : '<p style="color:var(--mid);font-size:.83rem">No purchases recorded yet</p>')
+    +'</div>'
+
+    // Usage history
+    +'<div class="fin-card">'
+    +'<h3>📅 Usage History</h3>'
+    +((S.shuttleUsage||[]).length
+      ? '<div style="overflow-x:auto"><table class="tbl"><thead><tr><th>Date</th><th style="text-align:center">Tubes</th><th>Notes</th><th></th></tr></thead><tbody>'+usageRows+'</tbody></table></div>'
+      : '<p style="color:var(--mid);font-size:.83rem">No usage logged yet</p>')
+    +'</div>';
+}
+
+async function saveUsage() {
+  const date   = document.getElementById('u-date').value;
+  const tubes  = parseInt(document.getElementById('u-tubes').value) || 1;
+  const notes  = document.getElementById('u-notes').value.trim();
+  if (!date) { showToast('Pick a date'); return; }
+  setLoading(true);
+  try {
+    const rows = await sb('shuttle_usage', 'POST', { date, tubes_opened: tubes, notes });
+    S.shuttleUsage = S.shuttleUsage || [];
+    S.shuttleUsage.push({ id: rows[0].id, date, tubes_opened: tubes, notes });
+    document.getElementById('u-tubes').value = '1';
+    document.getElementById('u-notes').value = '';
+    renderShuttles();
+    showToast(tubes + ' tube'+(tubes>1?'s':'')+' logged ✓');
+  } catch(e) { showToast('Error saving usage'); }
+  setLoading(false);
+}
+
+async function doDeleteUsage(id) {
+  setLoading(true);
+  try {
+    await sb('shuttle_usage?id=eq.'+id, 'DELETE');
+    S.shuttleUsage = S.shuttleUsage.filter(u => u.id !== id);
+    renderShuttles(); showToast('Entry removed');
+  } catch(e) { showToast('Error'); }
+  setLoading(false);
+}
+
+
+function renderPinSettings() {
+  return '<div class="fin-card" style="margin-top:8px">'
+    +'<h3>🔐 PIN Management</h3>'
+    +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">'
+    +'<div>'
+    +'<label style="font-size:.75rem;color:#8A9AB0;font-weight:600;text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:6px">Sessions & VLL PIN</label>'
+    +'<div style="display:flex;gap:6px">'
+    +'<input type="password" id="pin-sessions-new" placeholder="New PIN" maxlength="8" style="flex:1;padding:8px;border:1.5px solid #2C3E52;border-radius:7px;background:#0F1923;color:#F5EDD8;font-size:.9rem;outline:none;text-align:center;letter-spacing:.2em">'
+    +'<button class="btn btn-ghost btn-sm" onclick="savePin(\'sessions\')">Save</button>'
+    +'</div>'
+    +'<div style="font-size:.72rem;color:#8A9AB0;margin-top:4px">Current: '+'•'.repeat(PINS.sessions.length)+'</div>'
+    +'</div>'
+    +'<div>'
+    +'<label style="font-size:.75rem;color:#8A9AB0;font-weight:600;text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:6px">Finance PIN</label>'
+    +'<div style="display:flex;gap:6px">'
+    +'<input type="password" id="pin-finance-new" placeholder="New PIN" maxlength="8" style="flex:1;padding:8px;border:1.5px solid #2C3E52;border-radius:7px;background:#0F1923;color:#F5EDD8;font-size:.9rem;outline:none;text-align:center;letter-spacing:.2em">'
+    +'<button class="btn btn-ghost btn-sm" onclick="savePin(\'finance\')">Save</button>'
+    +'</div>'
+    +'<div style="font-size:.72rem;color:#8A9AB0;margin-top:4px">Current: '+'•'.repeat(PINS.finance.length)+'</div>'
+    +'</div>'
+    +'</div>'
+    +'<div style="margin-top:10px;font-size:.75rem;color:#8A9AB0">PINs are stored securely in the database. Share admin link only with club administrators.</div>'
+    +'</div>';
+}
+
+async function savePin(context) {
+  const input = document.getElementById('pin-'+context+'-new');
+  const newPin = input.value.trim();
+  if (!newPin || newPin.length < 4) { showToast('PIN must be at least 4 characters'); return; }
+  setLoading(true);
+  try {
+    const key = 'pin_'+context;
+    // Delete existing then insert
+    await sb('app_settings?key=eq.'+key, 'DELETE');
+    await sb('app_settings', 'POST', { key, value: newPin });
+    PINS[context] = newPin;
+    // Also unlock so they don't get locked out
+    if (context === 'sessions') _sessionUnlocked = true;
+    if (context === 'finance')  _financeUnlocked = true;
+    input.value = '';
+    renderFinance();
+    showToast((context==='sessions'?'Sessions':'Finance')+' PIN updated ✓');
+  } catch(e) { showToast('Error saving PIN'); }
+  setLoading(false);
+}
+
 // ── UTILS ─────────────────────────────────────────────────────────────────
 function openModal(id){document.getElementById(id).classList.add('open');}
 function closeModal(id){document.getElementById(id).classList.remove('open');}
@@ -1473,6 +1675,41 @@ function showConfirm(title,msg,onOk){
 function showToast(msg){
   var t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');
   setTimeout(function(){t.classList.remove('show');},2700);
+}
+
+// ── ROLE / TAB VISIBILITY ─────────────────────────────────────────────────
+const ROLES = {
+  player: ['rsvp','tournament'],
+  admin:  ['rsvp','sessions','finance','shuttles','tournament'],
+};
+
+function getRole() {
+  const p = new URLSearchParams(window.location.search);
+  return p.get('role') === 'admin' ? 'admin' : 'player';
+}
+
+function applyRole() {
+  const role = getRole();
+  const allowed = ROLES[role];
+  // Show/hide nav tabs
+  document.querySelectorAll('.nav-tab[data-view]').forEach(btn => {
+    const view = btn.getAttribute('data-view');
+    btn.style.display = allowed.includes(view) ? '' : 'none';
+  });
+  // Show share links strip
+  const base = location.origin + location.pathname;
+  const strip = document.getElementById('share-strip');
+  if (role === 'admin' && strip) {
+    strip.innerHTML =
+      '<span style="font-size:.7rem;color:#8A9AB0;margin-right:6px">Share:</span>'
+      +'<a href="'+base+'?role=player" style="font-size:.7rem;color:#D4A017;margin-right:10px">Player link</a>'
+      +'<a href="'+base+'?role=admin"  style="font-size:.7rem;color:#E05A00">Admin link</a>';
+    strip.style.display='flex';
+  }
+  // default landing tab = first allowed
+  const first = allowed[0];
+  const firstBtn = document.querySelector('.nav-tab[data-view="'+first+'"]');
+  showView(first, firstBtn);
 }
 
 // ── BOOT ──────────────────────────────────────────────────────────────────
