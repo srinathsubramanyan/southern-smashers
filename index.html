@@ -406,6 +406,10 @@ nav{background:linear-gradient(135deg,#0A1018 0%,#0F1923 60%,#140800 100%);borde
       </select>
     </div>
     <div id="m-fee-row" class="frow"><label>Quarterly Fee (A$)</label><input type="number" id="m-fee" value="60" min="0" step="5"></div>
+    <div class="fgrid" id="m-dates-row">
+      <div class="frow"><label>Start Date</label><input type="date" id="m-start"></div>
+      <div class="frow"><label>End Date (leave blank if current)</label><input type="date" id="m-end"></div>
+    </div>
     <div class="modal-btns">
       <button class="btn btn-ghost" onclick="closeModal('m-member')">Cancel</button>
       <button class="btn btn-lime" onclick="addMember()">Add Member</button>
@@ -497,7 +501,7 @@ let PINS = { sessions: '2055', finance: '2055' };
 let _sessionUnlocked = false;
 let _financeUnlocked = false;
 let _pendingPinContext = null; // 'sessions' | 'finance'
-const CASUAL_FEE   = 10;
+let CASUAL_FEE = 11; // configurable, loaded from app_settings at boot
 
 // ── Supabase REST helper ───────────────────────────────────────────────────
 async function sb(path, method='GET', body=null) {
@@ -577,7 +581,7 @@ function setLoading(on) {
 async function boot() {
   setLoading(true);
   try {
-    const [members, sessions, feePayments, sessionCosts, shuttleCosts, tournaments, appSettings] = await Promise.all([
+    const [members, sessions, feePayments, sessionCosts, shuttleCosts, tournaments, appSettings, casualPayments] = await Promise.all([
       sb('members?order=name'),
       sb('sessions?order=date'),
       sb('fee_payments?order=id'),
@@ -585,14 +589,20 @@ async function boot() {
       sb('shuttle_costs?order=date'),
       sb('tournaments?order=id'),
       sb('app_settings?order=key'),
+      sb('casual_payments?order=id'),
     ]);
 
     // sessions need their players loaded too
     // Load PINs from settings
     if (appSettings) {
-      appSettings.forEach(r => { if(r.key==='pin_sessions')PINS.sessions=r.value; if(r.key==='pin_finance')PINS.finance=r.value; });
+      appSettings.forEach(r => {
+        if(r.key==='pin_sessions') PINS.sessions=r.value;
+        if(r.key==='pin_finance')  PINS.finance=r.value;
+        if(r.key==='casual_fee')   CASUAL_FEE=parseFloat(r.value)||11;
+      });
     }
     S.members      = members || [];
+    S.casualPayments = casualPayments || [];
     S.feePayments  = feePayments || [];
     S.shuttleCosts = (shuttleCosts || []).map(c => ({
       ...c, desc: c.description||c.desc||'', month: (c.date||'').slice(0,7), tubes: c.tubes||0
@@ -777,41 +787,103 @@ function availableQuarters() {
 }
 function initials(name) { return name.split(' ').map(n=>n[0]).join('').slice(0,2).toUpperCase(); }
 
+// Returns true if a permanent member was active on a given date
+function isMemberActiveOn(member, dateStr) {
+  if (member.type !== 'permanent') return false;
+  const d = dateStr;
+  if (member.start_date && d < member.start_date) return false;
+  if (member.end_date   && d > member.end_date)   return false;
+  return true;
+}
+
 // ── FINANCE MODEL (pure computation on S) ────────────────────────────────
 function sessionsInQ(q){const ms=quarterMonths(q);return S.sessions.filter(s=>ms.includes(s.date.slice(0,7)));}
 function courtCostsInQ(q){return sessionsInQ(q).reduce((a,s)=>a+(S.sessionCosts[s.id]||0),0);}
 function shuttleCostsInQ(q){const ms=quarterMonths(q);return S.shuttleCosts.filter(c=>ms.includes(c.month)).reduce((a,c)=>a+c.amount,0);}
 function totalCostsInQ(q){return courtCostsInQ(q)+shuttleCostsInQ(q);}
 function feesPaidByMemberInQ(memberId,q){return S.feePayments.filter(p=>p.member_id===memberId&&p.quarter===q).reduce((a,p)=>a+p.amount,0);}
+
+// Active permanent members on a specific session date
+function activePermsOnDate(dateStr){
+  return S.members.filter(m=>isMemberActiveOn(m, dateStr));
+}
+
+// Cost per tube = total shuttle purchase cost / total tubes bought
+// Shuttle cost allocated per session based on tubes opened that day, split among active perms that day
+function shuttleCostForMemberInQ(member, q) {
+  if (member.type !== 'permanent') return 0;
+  const months = quarterMonths(q);
+  // Get usage logs in this quarter
+  const usageLogs = (S.shuttleUsage||[]).filter(u=>months.includes((u.date||'').slice(0,7)));
+  // Cost per tube (all-time weighted average)
+  const totalTubesBought = S.shuttleCosts.reduce((a,c)=>a+(c.tubes||0),0);
+  const totalCostBought  = S.shuttleCosts.reduce((a,c)=>a+c.amount,0);
+  const costPerTube = totalTubesBought>0 ? totalCostBought/totalTubesBought : 0;
+  let memberShuttleCost = 0;
+  usageLogs.forEach(u=>{
+    const activePerms = activePermsOnDate(u.date);
+    const count = Math.max(1, activePerms.length);
+    const isActive = activePerms.find(m=>m.id===member.id);
+    if (isActive) {
+      memberShuttleCost += (u.tubes_opened||0) * costPerTube / count;
+    }
+  });
+  return memberShuttleCost;
+}
+
 function memberCostInQ(member,q){
   const sessions=sessionsInQ(q);
-  const permCount=Math.max(1,S.members.filter(m=>m.type==='permanent').length);
   let cost=0;
   if(member.type==='permanent'){
-    sessions.forEach(s=>{cost+=(S.sessionCosts[s.id]||0)/permCount;});
-    cost+=shuttleCostsInQ(q)/permCount;
+    // Court costs: split among active perms on that session date
+    sessions.forEach(s=>{
+      const activePerms = activePermsOnDate(s.date);
+      const count = Math.max(1, activePerms.length);
+      const isActive = activePerms.find(m=>m.id===member.id);
+      if(isActive) cost+=(S.sessionCosts[s.id]||0)/count;
+    });
+    // Shuttle costs: usage-based
+    cost += shuttleCostForMemberInQ(member, q);
   } else {
     sessions.forEach(s=>{if(s.players.find(p=>p.id===member.id&&p.status==='going'))cost+=CASUAL_FEE;});
   }
   return cost;
 }
+
 function memberRunningBalance(member){
   const totalPaid=S.feePayments.filter(p=>p.member_id===member.id).reduce((a,p)=>a+p.amount,0);
-  const permCount=Math.max(1,S.members.filter(m=>m.type==='permanent').length);
   let totalCost=0;
   if(member.type==='permanent'){
-    S.sessions.forEach(s=>{totalCost+=(S.sessionCosts[s.id]||0)/permCount;});
-    totalCost+=S.shuttleCosts.reduce((a,c)=>a+c.amount,0)/permCount;
+    S.sessions.forEach(s=>{
+      const activePerms = activePermsOnDate(s.date);
+      const count = Math.max(1, activePerms.length);
+      const isActive = activePerms.find(m=>m.id===member.id);
+      if(isActive) totalCost+=(S.sessionCosts[s.id]||0)/count;
+    });
+    // All-time shuttle cost
+    const allUsage = S.shuttleUsage||[];
+    const totalTubesBought = S.shuttleCosts.reduce((a,c)=>a+(c.tubes||0),0);
+    const totalCostBought  = S.shuttleCosts.reduce((a,c)=>a+c.amount,0);
+    const costPerTube = totalTubesBought>0 ? totalCostBought/totalTubesBought : 0;
+    allUsage.forEach(u=>{
+      const activePerms = activePermsOnDate(u.date);
+      const count = Math.max(1, activePerms.length);
+      const isActive = activePerms.find(m=>m.id===member.id);
+      if(isActive) totalCost += (u.tubes_opened||0) * costPerTube / count;
+    });
   } else {
     S.sessions.forEach(s=>{if(s.players.find(p=>p.id===member.id&&p.status==='going'))totalCost+=CASUAL_FEE;});
   }
   return totalPaid-totalCost;
 }
+
 function poolBalance(){
   const totalIn=S.feePayments.reduce((a,p)=>a+p.amount,0);
+  // Add casual payments received
+  const casualIn=S.casualPayments ? S.casualPayments.reduce((a,p)=>a+p.amount,0) : 0;
   const totalCourt=Object.values(S.sessionCosts||{}).reduce((a,v)=>a+v,0);
   const totalShuttle=S.shuttleCosts.reduce((a,c)=>a+c.amount,0);
-  return totalIn-totalCourt-totalShuttle;
+  return totalIn+casualIn-totalCourt-totalShuttle;
 }
 function feeAlert(){
   const bal=poolBalance(); const q=currentQuarter();
@@ -1101,7 +1173,10 @@ function openAddMember(){
   document.getElementById('m-name').value='';
   document.getElementById('m-type').value='permanent';
   document.getElementById('m-fee').value='60';
+  document.getElementById('m-start').value=new Date().toISOString().split('T')[0];
+  document.getElementById('m-end').value='';
   document.getElementById('m-fee-row').style.display='block';
+  document.getElementById('m-dates-row').style.display='';
   openModal('m-member');
 }
 async function addMember(){
@@ -1109,10 +1184,12 @@ async function addMember(){
   if(!name){showToast('Enter a name');return;}
   const type=document.getElementById('m-type').value;
   const fee=type==='permanent'?(parseFloat(document.getElementById('m-fee').value)||60):0;
+  const start_date=document.getElementById('m-start').value||null;
+  const end_date=document.getElementById('m-end').value||null;
   setLoading(true);
   try{
-    const rows=await sb('members','POST',{name,type,fee});
-    S.members.push({id:rows[0].id,name,type,fee});
+    const rows=await sb('members','POST',{name,type,fee,start_date,end_date});
+    S.members.push({id:rows[0].id,name,type,fee,start_date,end_date});
     closeModal('m-member'); renderFinance(); showToast(name+' added ✅');
   }catch(e){showToast('Error adding member');}
   setLoading(false);
@@ -1145,39 +1222,152 @@ function renderFinance(){
   const feesThisQ=S.feePayments.filter(p=>p.quarter===q).reduce((a,p)=>a+p.amount,0);
   const poolBal=poolBalance();
   const permMembers=S.members.filter(m=>m.type==='permanent');
-  const permCount=Math.max(1,permMembers.length);
   const ai=feeAlert();
-  let casualIncome=0;
-  sessions.forEach(s=>s.players.forEach(p=>{if(p.type==='casual'&&p.status==='going')casualIncome+=CASUAL_FEE;}));
-  const mRows=S.members.map(m=>({...m,qCost:memberCostInQ(m,q),qPaid:feesPaidByMemberInQ(m.id,q),runBal:memberRunningBalance(m)}));
+
+  // ── Casual income breakdown per member ──────────────────────────────────
+  const casualMap={};
+  S.members.filter(m=>m.type==='casual').forEach(m=>{
+    casualMap[m.id]={id:m.id,name:m.name,sessions:[],totalOwed:0,totalPaid:0};
+  });
+  sessions.forEach(s=>{
+    s.players.forEach(p=>{
+      if(p.type==='casual'&&p.status==='going'){
+        if(!casualMap[p.id]) casualMap[p.id]={id:p.id,name:p.name,sessions:[],totalOwed:0,totalPaid:0};
+        casualMap[p.id].sessions.push(s.date);
+        casualMap[p.id].totalOwed+=CASUAL_FEE;
+      }
+    });
+  });
+  (S.casualPayments||[]).filter(p=>p.quarter===q).forEach(p=>{
+    if(casualMap[p.member_id]) casualMap[p.member_id].totalPaid+=p.amount;
+  });
+  const casualList=Object.values(casualMap).filter(c=>c.sessions.length>0||c.totalPaid>0);
+  const casualIncomeOwed=casualList.reduce((a,c)=>a+c.totalOwed,0);
+  const casualIncomePaid=casualList.reduce((a,c)=>a+c.totalPaid,0);
+
+  // ── Session cost rows ────────────────────────────────────────────────────
   let sessionCostRows='';
   if(!sessions.length){sessionCostRows='<p style="color:var(--mid);font-size:.83rem">No sessions this quarter</p>';}
   else{
-    sessionCostRows='<div style="overflow-x:auto"><table class="tbl"><thead><tr><th>Date</th><th>Venue</th><th>Going</th><th>Court Cost (A$)</th><th>Per Head</th></tr></thead><tbody>';
+    sessionCostRows='<div style="overflow-x:auto"><table class="tbl"><thead><tr><th>Date</th><th>Venue</th><th>Active Perms</th><th>Court Cost (A$)</th><th>Per Perm</th></tr></thead><tbody>';
     sessions.forEach(s=>{
-      const going=s.players.filter(p=>p.status==='going').length;
+      const ap=activePermsOnDate(s.date);
       const cost=S.sessionCosts[s.id]||0;
-      const ph=going>0?'A$'+(cost/going).toFixed(2):'—';
-      sessionCostRows+='<tr><td style="white-space:nowrap;font-size:.8rem">'+fmtShort(s.date)+'</td><td style="font-size:.78rem;color:var(--mid)">'+(s.venue.length>20?s.venue.slice(0,20)+'…':s.venue)+'</td><td>'+going+'</td><td><div style="display:flex;align-items:center;gap:5px"><span style="color:var(--mid);font-size:.82rem">A$</span><input class="inline-num" type="number" min="0" step="0.50" value="'+cost+'" onchange="doSetSessionCost('+s.id+',parseFloat(this.value)||0)"></div></td><td style="font-weight:600;color:#D4A017">'+ph+'</td></tr>';
+      const ph=ap.length>0?'A$'+(cost/ap.length).toFixed(2):'—';
+      sessionCostRows+='<tr>'
+        +'<td style="white-space:nowrap;font-size:.8rem">'+fmtShort(s.date)+'</td>'
+        +'<td style="font-size:.78rem;color:var(--mid)">'+(s.venue.length>18?s.venue.slice(0,18)+'…':s.venue)+'</td>'
+        +'<td style="font-size:.8rem">'+ap.length+'<span style="color:#8A9AB0;font-size:.7rem"> ('+ap.map(m=>m.name.split(' ')[0]).join(', ')+')</span></td>'
+        +'<td><div style="display:flex;align-items:center;gap:5px"><span style="color:var(--mid);font-size:.82rem">A$</span>'
+        +'<input class="inline-num" type="number" min="0" step="0.50" value="'+cost+'" onchange="doSetSessionCost('+s.id+',parseFloat(this.value)||0)"></div></td>'
+        +'<td style="font-weight:600;color:#D4A017">'+ph+'</td></tr>';
     });
     sessionCostRows+='</tbody></table></div>';
   }
-  // shuttle rows now in Shuttles tab
-  let memberRows='';
-  mRows.forEach(m=>{
-    const bc=m.runBal>0.005?'bal-pos':m.runBal<-0.005?'bal-neg':'bal-zero';
-    const bl=m.runBal>0.005?'+A$'+m.runBal.toFixed(2)+' credit':m.runBal<-0.005?'−A$'+Math.abs(m.runBal).toFixed(2)+' owes':'Even';
-    const feeCell=m.type==='permanent'
-      ?'<div style="display:flex;align-items:center;gap:5px"><span style="font-size:.78rem;color:var(--mid)">A$</span><input class="inline-num" type="number" min="0" step="5" value="'+m.qPaid+'" onchange="doSetFeePayment('+m.id+',\''+q+'\',parseFloat(this.value)||0)"></div>'
-      :'<span style="color:var(--mid);font-size:.82rem">A$'+CASUAL_FEE+'/session</span>';
-    memberRows+='<tr><td><strong>'+m.name+'</strong></td><td><span class="mtype mtype-'+(m.type==='permanent'?'perm':'cas')+'">'+(m.type==='permanent'?'Permanent':'Casual')+'</span></td><td>'+feeCell+'</td><td style="font-size:.83rem">A$'+m.qCost.toFixed(2)+'</td><td class="'+bc+'">'+bl+'</td><td><button class="btn btn-red btn-sm" style="padding:3px 7px" onclick="doRemoveMember('+m.id+')">✕</button></td></tr>';
-  });
+
+  // ── Permanent member rows ────────────────────────────────────────────────
+  const permRows=permMembers.map(m=>{
+    const qCost=memberCostInQ(m,q);
+    const qPaid=feesPaidByMemberInQ(m.id,q);
+    const runBal=memberRunningBalance(m);
+    const bc=runBal>0.005?'bal-pos':runBal<-0.005?'bal-neg':'bal-zero';
+    const bl=runBal>0.005?'+A$'+runBal.toFixed(2)+' credit':runBal<-0.005?'−A$'+Math.abs(runBal).toFixed(2)+' owes':'Even';
+    const dateInfo=m.start_date?'<div style="font-size:.7rem;color:#8A9AB0">'+m.start_date+(m.end_date?' → '+m.end_date:'')+'</div>':'';
+    return '<tr>'
+      +'<td><strong>'+m.name+'</strong>'+dateInfo+'</td>'
+      +'<td><div style="display:flex;align-items:center;gap:5px"><span style="font-size:.78rem;color:var(--mid)">A$</span>'
+      +'<input class="inline-num" type="number" min="0" step="5" value="'+qPaid.toFixed(2)+'" onchange="doSetFeePayment('+m.id+',\''+q+'\',parseFloat(this.value)||0)"></div></td>'
+      +'<td style="font-size:.83rem">A$'+qCost.toFixed(2)+'</td>'
+      +'<td class="'+bc+'">'+bl+'</td>'
+      +'<td><button class="btn btn-red btn-sm" style="padding:3px 7px" onclick="doRemoveMember('+m.id+')">✕</button></td>'
+      +'</tr>';
+  }).join('');
+
+  // ── Casual income rows ───────────────────────────────────────────────────
+  const casualRows=casualList.map(c=>{
+    const paid=c.totalPaid>=c.totalOwed*0.99&&c.totalOwed>0;
+    return '<tr>'
+      +'<td><strong>'+c.name+'</strong>'
+      +'<div style="font-size:.72rem;color:#8A9AB0">'+c.sessions.length+' session'+(c.sessions.length!==1?'s':'')+': '+c.sessions.map(d=>fmtShort(d)).join(', ')+'</div></td>'
+      +'<td style="font-weight:600;color:#D4A017">A$'+c.totalOwed.toFixed(2)+'</td>'
+      +'<td style="font-weight:600;color:'+(c.totalPaid>0?'#D4A017':'#8A9AB0')+'">A$'+c.totalPaid.toFixed(2)+'</td>'
+      +'<td>'+(paid
+        ?'<span style="color:#D4A017;font-size:.82rem;font-weight:600">✓ Paid</span>'
+        :'<button class="btn btn-lime btn-sm" onclick="markCasualPaid('+c.id+',\''+q+'\','+c.totalOwed+')">Mark Paid</button>')
+      +'</td></tr>';
+  }).join('');
+
   el.innerHTML=
-    (ai.alert?'<div class="alert-banner"><div class="ico">⚠️</div><div><strong>Time to collect fees!</strong> Pool balance is <strong>A$'+ai.balance.toFixed(2)+'</strong> — running low.<br><button class="btn btn-amber btn-sm" style="margin-top:8px" onclick="doOpenCollectFees(\''+q+'\')">💰 Collect Fees Now</button></div></div>':'')
-    +'<div style="display:flex;align-items:center;gap:10px;margin-bottom:18px;flex-wrap:wrap"><label style="font-size:.78rem;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--mid)">Quarter</label><select style="padding:7px 11px;border:1.5px solid var(--border);border-radius:8px;font-family:Inter,sans-serif;font-size:.86rem;background:#0F1923;color:#F5EDD8;outline:none" onchange="S.financeQuarter=this.value;renderFinance()">'+qOpts+'</select><button class="btn btn-ghost btn-sm" onclick="doOpenCollectFees(\''+q+'\')">💰 Collect Fees</button></div>'
-    +'<div class="fin-card"><h3>📊 '+quarterLabel(q)+'</h3><div class="fin-grid"><div class="fin-stat"><div class="num" style="color:#D4A017">A$'+feesThisQ.toFixed(2)+'</div><div class="lbl">Fees Collected</div></div><div class="fin-stat"><div class="num" style="color:#D4A017">A$'+casualIncome.toFixed(2)+'</div><div class="lbl">Casual Income</div></div><div class="fin-stat"><div class="num" style="color:#D4A017">A$'+allCosts.toFixed(2)+'</div><div class="lbl">Total Costs</div></div><div class="fin-stat"><div class="num" style="color:'+(poolBal>=0?'#D4A017':'var(--red)')+'">A$'+poolBal.toFixed(2)+'</div><div class="lbl">Pool Balance</div></div></div><div style="font-size:.8rem;color:var(--mid)">Court: <strong>A$'+courtTotal.toFixed(2)+'</strong> · Shuttles: <strong>A$'+shuttleTotal.toFixed(2)+'</strong> · '+sessions.length+' session'+(sessions.length!==1?'s':'')+' this quarter</div></div>'
-    +'<div class="fin-card"><h3>🏟️ Session Court Costs</h3>'+sessionCostRows+'</div>'
-    +'<div class="fin-card"><div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:13px"><h3 style="margin:0">👥 Member Balances</h3><button class="btn btn-ghost btn-sm" onclick="openAddMember()">＋ Add Member</button></div><div style="overflow-x:auto"><table class="tbl"><thead><tr><th>Name</th><th>Type</th><th>Q Fee Paid</th><th>Q Cost</th><th>Running Balance</th><th></th></tr></thead><tbody>'+memberRows+'</tbody></table></div><div style="margin-top:11px;font-size:.78rem;color:var(--mid)">💡 <strong>Permanent:</strong> charged their share of all court & shuttle costs regardless of attendance. <strong>Casual:</strong> A$'+CASUAL_FEE+' per session attended. Running balance carries over.</div></div>';
+    (ai.alert?'<div class="alert-banner"><div class="ico">⚠️</div><div><strong>Time to collect fees!</strong> Pool balance <strong>A$'+ai.balance.toFixed(2)+'</strong> — running low.<br><button class="btn btn-amber btn-sm" style="margin-top:8px" onclick="doOpenCollectFees(\''+q+'\')">💰 Collect Fees Now</button></div></div>':'')
+
+    +'<div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;flex-wrap:wrap">'
+    +'<label style="font-size:.78rem;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--mid)">Quarter</label>'
+    +'<select style="padding:7px 11px;border:1.5px solid var(--border);border-radius:8px;font-family:Inter,sans-serif;font-size:.86rem;background:#0F1923;color:#F5EDD8;outline:none" onchange="S.financeQuarter=this.value;renderFinance()">'+qOpts+'</select>'
+    +'<button class="btn btn-ghost btn-sm" onclick="doOpenCollectFees(\''+q+'\')" >💰 Collect Fees</button>'
+    +'<div style="display:flex;align-items:center;gap:6px;margin-left:auto;background:#1A2433;padding:5px 10px;border-radius:8px;border:1px solid #2C3E52">'
+    +'<label style="font-size:.73rem;color:#8A9AB0;white-space:nowrap">Casual fee</label>'
+    +'<span style="font-size:.8rem;color:#8A9AB0">A$</span>'
+    +'<input class="inline-num" type="number" min="1" step="0.50" value="'+CASUAL_FEE.toFixed(2)+'" style="width:55px" onchange="setCasualFee(parseFloat(this.value)||11)">'
+    +'</div></div>'
+
+    +'<div class="fin-card"><h3>📊 '+quarterLabel(q)+'</h3>'
+    +'<div class="fin-grid">'
+    +'<div class="fin-stat"><div class="num" style="color:#D4A017">A$'+feesThisQ.toFixed(2)+'</div><div class="lbl">Perm Fees</div></div>'
+    +'<div class="fin-stat"><div class="num" style="color:#D4A017">A$'+casualIncomePaid.toFixed(2)+'<span style="font-size:.7rem;color:#8A9AB0"> /'+casualIncomeOwed.toFixed(2)+'</span></div><div class="lbl">Casual Paid/Owed</div></div>'
+    +'<div class="fin-stat"><div class="num" style="color:#D4A017">A$'+allCosts.toFixed(2)+'</div><div class="lbl">Total Costs</div></div>'
+    +'<div class="fin-stat"><div class="num" style="color:'+(poolBal>=0?'#D4A017':'var(--red)')+'">A$'+poolBal.toFixed(2)+'</div><div class="lbl">Pool Balance</div></div>'
+    +'</div>'
+    +'<div style="font-size:.78rem;color:var(--mid)">Court: <strong>A$'+courtTotal.toFixed(2)+'</strong> · Shuttles (usage-based): <strong>A$'+shuttleTotal.toFixed(2)+'</strong> · <a onclick="showView(\'shuttles\',document.querySelector(\'.nav-tab[data-view=shuttles]\'))" style="color:#D4A017;cursor:pointer">Manage shuttles →</a></div>'
+    +'</div>'
+
+    +'<div class="fin-card"><h3>🏟️ Session Court Costs</h3>'
+    +'<div style="font-size:.73rem;color:#8A9AB0;margin-bottom:10px">Split only among permanent members active on each session date (based on start/end dates).</div>'
+    +sessionCostRows+'</div>'
+
+    +(casualList.length?
+      '<div class="fin-card"><h3>🎟️ Casual Income · A$'+CASUAL_FEE.toFixed(2)+'/session</h3>'
+      +'<div style="overflow-x:auto"><table class="tbl">'
+      +'<thead><tr><th>Name</th><th>Owed</th><th>Received</th><th></th></tr></thead>'
+      +'<tbody>'+casualRows+'</tbody></table></div>'
+      +'<div style="margin-top:9px;font-size:.76rem;color:#8A9AB0">Owed: <strong style="color:#D4A017">A$'+casualIncomeOwed.toFixed(2)+'</strong> · Received: <strong style="color:#D4A017">A$'+casualIncomePaid.toFixed(2)+'</strong> · Outstanding: <strong style="color:'+(casualIncomeOwed-casualIncomePaid>0.005?'var(--red)':'#D4A017')+'">A$'+(casualIncomeOwed-casualIncomePaid).toFixed(2)+'</strong></div>'
+      +'</div>'
+    :'')
+
+    +'<div class="fin-card">'
+    +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:13px">'
+    +'<h3 style="margin:0">👥 Permanent Members</h3>'
+    +'<button class="btn btn-ghost btn-sm" onclick="openAddMember()">＋ Add Member</button>'
+    +'</div>'
+    +'<div style="overflow-x:auto"><table class="tbl">'
+    +'<thead><tr><th>Name</th><th>Q Fee Paid</th><th>Q Cost</th><th>Running Balance</th><th></th></tr></thead>'
+    +'<tbody>'+permRows+'</tbody></table></div>'
+    +'<div style="margin-top:10px;font-size:.73rem;color:#8A9AB0">Court & shuttle costs split only among members with active membership on that date. Shuttle = tubes used × avg cost-per-tube ÷ active members. Balance carries over across quarters.</div>'
+    +'</div>';
+}
+
+
+
+async function markCasualPaid(memberId, q, amount) {
+  setLoading(true);
+  try {
+    // Remove existing for this member+quarter then insert
+    await sb('casual_payments?member_id=eq.'+memberId+'&quarter=eq.'+q, 'DELETE');
+    const rows = await sb('casual_payments', 'POST', {member_id:memberId, quarter:q, amount});
+    S.casualPayments = (S.casualPayments||[]).filter(p=>!(p.member_id===memberId&&p.quarter===q));
+    S.casualPayments.push({id:rows[0].id, member_id:memberId, quarter:q, amount});
+    renderFinance(); showToast('Payment marked as received ✅');
+  } catch(e) { showToast('Error saving payment'); }
+  setLoading(false);
+}
+
+async function setCasualFee(val) {
+  CASUAL_FEE = val;
+  try {
+    await sb('app_settings?key=eq.casual_fee', 'DELETE');
+    await sb('app_settings', 'POST', {key:'casual_fee', value:String(val)});
+    showToast('Casual fee updated to A$'+val.toFixed(2));
+    renderFinance();
+  } catch(e) { showToast('Error saving casual fee'); }
 }
 
 async function doSetSessionCost(id,cost){
