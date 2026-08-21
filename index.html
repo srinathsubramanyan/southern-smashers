@@ -580,7 +580,7 @@ function setLoading(on) {
 async function boot() {
   setLoading(true);
   try {
-    const [members, sessions, feePayments, sessionCosts, shuttleCosts, tournaments, appSettings, casualPayments] = await Promise.all([
+    const [members, sessions, feePayments, sessionCosts, shuttleCosts, tournaments, appSettings, casualPayments, shuttleUsage] = await Promise.all([
       sb('members?order=name'),
       sb('sessions?order=date'),
       sb('fee_payments?order=id'),
@@ -589,6 +589,7 @@ async function boot() {
       sb('tournaments?order=id'),
       sb('app_settings?order=key'),
       sb('casual_payments?order=id'),
+      sb('shuttle_usage?order=date'),
     ]);
 
     // sessions need their players loaded too
@@ -600,8 +601,9 @@ async function boot() {
         if(r.key==='casual_fee')   CASUAL_FEE=parseFloat(r.value)||11;
       });
     }
-    S.members      = members || [];
+    S.members        = members || [];
     S.casualPayments = casualPayments || [];
+    S.shuttleUsage   = (shuttleUsage || []);
     S.feePayments  = feePayments || [];
     S.shuttleCosts = (shuttleCosts || []).map(c => ({
       ...c, desc: c.description||c.desc||'', month: (c.date||'').slice(0,7), tubes: c.tubes||0
@@ -1775,7 +1777,7 @@ async function saveKOScore(mid){
 // Stock = sum(purchased tubes) - sum(tubes_opened)
 
 async function loadShuttleUsage() {
-  if (S.shuttleUsage) return;
+  if (S.shuttleUsage !== undefined) return; // already loaded at boot
   try {
     const rows = await sb('shuttle_usage?order=date.desc');
     S.shuttleUsage = rows || [];
