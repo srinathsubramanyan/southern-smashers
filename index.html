@@ -821,6 +821,17 @@ function isMemberActiveOn(member, dateStr) {
 function sessionsInQ(q){const ms=quarterMonths(q);return S.sessions.filter(s=>ms.includes(s.date.slice(0,7)));}
 function courtCostsInQ(q){return sessionsInQ(q).reduce((a,s)=>a+(S.sessionCosts[s.id]||0),0);}
 function shuttleCostsInQ(q){const ms=quarterMonths(q);return S.shuttleCosts.filter(c=>ms.includes(c.month)).reduce((a,c)=>a+c.amount,0);}
+
+// Usage-based shuttle cost for a quarter: tubes opened in Q × all-time avg cost-per-tube
+function shuttleUsageCostInQ(q){
+  const months=quarterMonths(q);
+  const usageInQ=(S.shuttleUsage||[]).filter(u=>months.includes((u.date||'').slice(0,7)));
+  const tubesUsedInQ=usageInQ.reduce((a,u)=>a+(u.tubes_opened||0),0);
+  const totalTubesBought=S.shuttleCosts.reduce((a,c)=>a+(c.tubes||0),0);
+  const totalCostBought=S.shuttleCosts.reduce((a,c)=>a+c.amount,0);
+  const costPerTube=totalTubesBought>0?totalCostBought/totalTubesBought:0;
+  return tubesUsedInQ*costPerTube;
+}
 function totalCostsInQ(q){return courtCostsInQ(q)+shuttleCostsInQ(q);}
 function feesPaidByMemberInQ(memberId,q){return S.feePayments.filter(p=>p.member_id===memberId&&p.quarter===q).reduce((a,p)=>a+p.amount,0);}
 
@@ -1241,7 +1252,8 @@ function renderFinance(){
   const qOpts=qs.map(x=>'<option value="'+x+'"'+(x===q?' selected':'')+'>'+quarterLabel(x)+'</option>').join('');
   const sessions=sessionsInQ(q);
   const courtTotal=courtCostsInQ(q);
-  const shuttleTotal=shuttleCostsInQ(q);
+  const shuttleTotal=shuttleUsageCostInQ(q); // cost of tubes actually used this quarter
+  const shuttlePurchaseTotal=shuttleCostsInQ(q); // total purchased (shown in Shuttles tab)
   const allCosts=courtTotal+shuttleTotal;
   const months=quarterMonths(q);
   const feesThisQ=S.feePayments.filter(p=>p.quarter===q).reduce((a,p)=>a+p.amount,0);
@@ -1342,7 +1354,7 @@ function renderFinance(){
     +'<div class="fin-stat"><div class="num" style="color:#D4A017">A$'+allCosts.toFixed(2)+'</div><div class="lbl">Total Costs</div></div>'
     +'<div class="fin-stat"><div class="num" style="color:'+(poolBal>=0?'#D4A017':'var(--red)')+'">A$'+poolBal.toFixed(2)+'</div><div class="lbl">Pool Balance</div></div>'
     +'</div>'
-    +'<div style="font-size:.78rem;color:var(--mid)">Court: <strong>A$'+courtTotal.toFixed(2)+'</strong> · Shuttles (usage-based): <strong>A$'+shuttleTotal.toFixed(2)+'</strong> · <a onclick="showView(\'shuttles\',document.querySelector(\'.nav-tab[data-view=shuttles]\'))" style="color:#D4A017;cursor:pointer">Manage shuttles →</a></div>'
+    +'<div style="font-size:.78rem;color:var(--mid)">Court: <strong>A$'+courtTotal.toFixed(2)+'</strong> · Shuttle usage cost: <strong>A$'+shuttleTotal.toFixed(2)+'</strong> · <a onclick="showView(\'shuttles\',document.querySelector(\'.nav-tab[data-view=shuttles]\'))" style="color:#D4A017;cursor:pointer">Manage shuttles →</a></div>'
     +'</div>'
 
     +'<div class="fin-card"><h3>🏟️ Session Court Costs</h3>'
