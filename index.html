@@ -1441,7 +1441,17 @@ async function doDeleteShuttle(dbId){
 }
 
 // ── TOURNAMENT ────────────────────────────────────────────────────────────
-function activeTournament(){return S.tournaments.length?S.tournaments[S.tournaments.length-1]:null;}
+let _activeTournamentId = null; // null = show home/list
+
+function activeTournament(){
+  if(_activeTournamentId===null) return null;
+  return S.tournaments.find(function(t){return (t.db_id||t.id)===_activeTournamentId;})||null;
+}
+
+function setActiveTournament(id){
+  _activeTournamentId = id;
+  renderTournament();
+}
 
 function generateRoundRobin(teams){
   var pairs=[];
@@ -1491,28 +1501,60 @@ function seedSemis(t){
 
 function renderTournament(){
   var el=document.getElementById('tournament-content');
+  if(_activeTournamentId===null){renderTHome(el);return;}
   var t=activeTournament();
-  if(!t){renderTHome(el);return;}
+  if(!t){_activeTournamentId=null;renderTHome(el);return;}
   renderTActive(el,t);
 }
 
 function renderTHome(el){
-  var pastHTML='';
-  if(S.tournaments.length>1){
-    pastHTML='<div class="t-card" style="margin-bottom:16px"><div class="t-card-hdr"><h3>Past Tournaments</h3></div><div class="t-card-body">';
-    S.tournaments.slice(0,-1).forEach(function(pt){
-      var w=(pt.final&&pt.final.s1!==null)?tName(pt,parseInt(pt.final.s1)>=parseInt(pt.final.s2)?pt.final.t1:pt.final.t2):'In progress';
-      pastHTML+='<div class="team-row"><div class="team-num">🏆</div><div class="team-info"><div class="team-name">'+pt.name+'</div><div class="team-players">'+pt.date+' · '+pt.teams.length+' teams · Winner: '+w+'</div></div></div>';
-    });
-    pastHTML+='</div></div>';
-  }
-  el.innerHTML='<div class="t-hero" style="text-align:center;padding:28px 18px">'
+  var heroHTML='<div class="t-hero" style="text-align:center;padding:24px 18px">'
     +'<div style="font-family:Bebas Neue,cursive;font-size:.75rem;letter-spacing:.3em;color:#E05A00;margin-bottom:4px">★ PRESENTS ★</div>'
     +'<div style="font-family:Bebas Neue,cursive;font-size:2.6rem;color:#D4A017;letter-spacing:.12em;line-height:1;text-shadow:0 0 20px rgba(212,160,23,.4)">VERA LEVEL</div>'
     +'<div style="font-family:Bebas Neue,cursive;font-size:1.5rem;color:#F0C040;letter-spacing:.25em;margin-bottom:6px">LEAGUE</div>'
-    +'<div style="font-size:.78rem;color:#8A9AB0;letter-spacing:.1em">🎬 Round Robin + Knockout · 2 Courts</div></div>'
-    +pastHTML
-    +'<div style="text-align:center;padding:24px 20px"><div style="font-size:2.5rem;margin-bottom:12px">🏸</div><p style="color:var(--mid);font-size:.9rem;margin-bottom:18px">Create a tournament to get started</p><button class="btn btn-lime" onclick="openNewTournament()">＋ New Tournament</button></div>';
+    +'<div style="font-size:.78rem;color:#8A9AB0;letter-spacing:.1em">🎬 Round Robin + Knockout · 2 Courts</div>'
+    +'</div>';
+
+  var listHTML='';
+  if(S.tournaments.length){
+    listHTML='<div class="t-card" style="margin-bottom:16px">'
+      +'<div class="t-card-hdr"><h3>Tournaments ('+S.tournaments.length+')</h3>'
+      +'<button class="btn btn-lime btn-sm" onclick="openNewTournament()">＋ New</button>'
+      +'</div>'
+      +'<div class="t-card-body">';
+    // Show newest first
+    var sorted=[...S.tournaments].reverse();
+    sorted.forEach(function(pt){
+      var tid=pt.db_id||pt.id;
+      var isComplete=pt.final&&pt.final.s1!==null;
+      var w=isComplete?tName(pt,parseInt(pt.final.s1)>=parseInt(pt.final.s2)?pt.final.t1:pt.final.t2):null;
+      var phase=pt.phase||'setup';
+      var phaseBadge=isComplete
+        ?'<span style="background:linear-gradient(135deg,#D4A017,#E05A00);color:#0A1018;padding:2px 8px;border-radius:10px;font-size:.68rem;font-weight:700">🏆 Complete</span>'
+        :phase==='roundrobin'
+          ?'<span style="background:rgba(212,160,23,.2);color:#D4A017;border:1px solid #D4A017;padding:2px 8px;border-radius:10px;font-size:.68rem;font-weight:700">Round Robin</span>'
+          :phase==='knockout'
+            ?'<span style="background:rgba(224,90,0,.2);color:#E05A00;border:1px solid #E05A00;padding:2px 8px;border-radius:10px;font-size:.68rem;font-weight:700">Knockout</span>'
+            :'<span style="background:#2C3E52;color:#8A9AB0;padding:2px 8px;border-radius:10px;font-size:.68rem;font-weight:700">Setup</span>';
+      listHTML+='<div class="team-row" style="cursor:pointer" onclick="setActiveTournament('+tid+')">'
+        +'<div class="team-num" style="font-size:.9rem">🎬</div>'
+        +'<div class="team-info">'
+        +'<div class="team-name" style="display:flex;align-items:center;gap:7px">'+pt.name+' '+phaseBadge+'</div>'
+        +'<div class="team-players">'+pt.date+' · '+pt.teams.length+' team'+(pt.teams.length!==1?'s':'')+(w?' · 🏆 '+w:'')+'</div>'
+        +'</div>'
+        +'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#8A9AB0" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>'
+        +'</div>';
+    });
+    listHTML+='</div></div>';
+  } else {
+    listHTML='<div style="text-align:center;padding:24px 20px">'
+      +'<div style="font-size:2.5rem;margin-bottom:12px">🏸</div>'
+      +'<p style="color:var(--mid);font-size:.9rem;margin-bottom:18px">No tournaments yet — create the first one!</p>'
+      +'<button class="btn btn-lime" onclick="openNewTournament()">＋ New Tournament</button>'
+      +'</div>';
+  }
+
+  el.innerHTML = heroHTML + listHTML;
 }
 
 function renderTActive(el,t){
@@ -1521,10 +1563,15 @@ function renderTActive(el,t){
   if(phase==='setup')body=renderSetup(t);
   if(phase==='roundrobin')body=renderRoundRobin(t);
   if(phase==='knockout')body=renderKnockout(t);
-  el.innerHTML='<div class="t-hero" style="text-align:center;padding:24px 18px">'
+  el.innerHTML=
+    '<div style="margin-bottom:12px">'
+    +'<button class="btn btn-ghost btn-sm" onclick="_activeTournamentId=null;renderTournament()">← All Tournaments</button>'
+    +'</div>'
+    +'<div class="t-hero" style="text-align:center;padding:20px 18px">'
     +'<div style="font-family:Bebas Neue,cursive;font-size:.7rem;letter-spacing:.3em;color:#E05A00;margin-bottom:2px">★ VERA LEVEL LEAGUE ★</div>'
     +'<div style="font-family:Bebas Neue,cursive;font-size:2rem;color:#D4A017;letter-spacing:.1em;line-height:1">'+t.name+'</div>'
-    +'<div style="font-size:.78rem;color:#8A9AB0;margin-top:5px">🎬 '+t.date+' · '+t.teams.length+' teams · 2 Courts</div></div>'
+    +'<div style="font-size:.78rem;color:#8A9AB0;margin-top:5px">🎬 '+t.date+' · '+t.teams.length+' teams · 2 Courts</div>'
+    +'</div>'
     +buildPhaseTabs(t,phase)+body;
 }
 
@@ -1613,6 +1660,7 @@ async function createTournament(){
     var rows=await dbSaveTournament(t);
     t.db_id=rows;
     S.tournaments.push(t);
+    _activeTournamentId=t.db_id;
     closeModal('m-tournament');renderTournament();showToast('Tournament created 🏆');
   }catch(e){showToast('Error creating tournament');}
   setLoading(false);
@@ -1621,7 +1669,7 @@ function doDeleteTournament(){
   var t=activeTournament();if(!t)return;
   showConfirm('Delete "'+t.name+'"?','All teams and scores will be lost.',async function(){
     setLoading(true);
-    try{if(t.db_id)await dbDeleteTournament(t.db_id);S.tournaments=S.tournaments.filter(function(x){return x.db_id!==t.db_id;});renderTournament();showToast('Deleted');}
+    try{if(t.db_id)await dbDeleteTournament(t.db_id);S.tournaments=S.tournaments.filter(function(x){return x.db_id!==t.db_id;});_activeTournamentId=null;renderTournament();showToast('Deleted');}
     catch(e){showToast('Error');}
     setLoading(false);
   });
