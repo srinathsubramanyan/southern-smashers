@@ -606,7 +606,9 @@ async function boot() {
     S.shuttleCosts = (shuttleCosts || []).map(c => ({
       ...c, desc: c.description||c.desc||'', month: (c.date||'').slice(0,7), tubes: c.tubes||0
     }));
-    S.tournaments  = (tournaments || []).map(t => ({
+    // Deduplicate by id in case of previous duplicate inserts
+    const seenTIds = new Set();
+    S.tournaments  = (tournaments || []).filter(t=>{ if(seenTIds.has(t.id)) return false; seenTIds.add(t.id); return true; }).map(t => ({
       ...t,
       teams:     t.teams     || [],
       rrMatches: t.rr_matches|| [],
@@ -636,6 +638,24 @@ async function boot() {
     }));
 
     if (!S.financeQuarter) S.financeQuarter = currentQuarter();
+    // Auto-clean any duplicate tournaments from Supabase (same name+date, keep highest id = most recent)
+    const seen = {};
+    const toDelete = [];
+    // Sort ascending so highest id wins (last one seen overwrites)
+    var sortedByIdAsc = [...S.tournaments].sort(function(a,b){ return (a.db_id||0)-(b.db_id||0); });
+    sortedByIdAsc.forEach(function(t){
+      var key = t.name + '|' + t.date;
+      if(seen[key]){ toDelete.push(seen[key]); } // push the older one for deletion
+      seen[key] = t; // keep overwriting so last (highest id) survives
+    });
+    if(toDelete.length){
+      console.warn('Cleaning '+toDelete.length+' duplicate tournaments');
+      var survivors = Object.values(seen);
+    S.tournaments = S.tournaments.filter(function(t){ return survivors.includes(t); });
+      // Delete from Supabase silently
+      Promise.all(toDelete.map(function(t){ return t.db_id ? dbDeleteTournament(t.db_id) : Promise.resolve(); }))
+        .catch(function(e){ console.warn('Cleanup error:', e); });
+    }
     setLoading(false);
     applyRole();
   } catch(e) {
@@ -1585,7 +1605,7 @@ function buildPhaseTabs(t,phase){
 
 document.addEventListener('click',function(e){
   var btn=e.target.closest('[data-phase]');
-  if(btn){var ph=btn.getAttribute('data-phase');var t=activeTournament();if(!t)return;if(ph==='knockout'&&!t.sf){showToast('Complete round robin first');return;}t.phase=ph;saveTournament(t);renderTournament();}
+  if(btn){var ph=btn.getAttribute('data-phase');var t=activeTournament();if(!t)return;if(ph==='knockout'&&!t.sf){showToast('Complete round robin first');return;}t.phase=ph;renderTournament();saveTournament(t);}
 });
 
 function renderSetup(t){
@@ -1634,7 +1654,7 @@ function renderKnockout(t){
   if(!t.sf)return'<p style="color:var(--mid)">Complete the round robin first.</p>';
   var sf1=t.sf[0],sf2=t.sf[1];
   var w1=sf1.s1!==null?sfWinner(t,'sf1'):null,w2=sf2.s1!==null?sfWinner(t,'sf2'):null;
-  if(w1&&w2&&(!t.final.t1||!t.final.t2)){t.final.t1=w1;t.final.t2=w2;saveTournament(t);}
+  if(w1&&w2&&(!t.final.t1||!t.final.t2)){t.final.t1=w1;t.final.t2=w2;saveTournament(t);}  // fire-and-forget ok here
   var champion=(t.final&&t.final.s1!==null)?getTeam(t,parseInt(t.final.s1)>=parseInt(t.final.s2)?t.final.t1:t.final.t2):null;
   var winnerBanner=champion?'<div class="winner-banner"><div class="trophy">🏆</div><h2>'+champion.name+'</h2><p>'+champion.p1+' & '+champion.p2+'</p><p style="margin-top:6px;font-size:.8rem;opacity:.8">Tournament Champions!</p></div>':'';
   function koMatch(m,label){
@@ -1681,8 +1701,9 @@ async function addTeam(){
   var name=document.getElementById('tm-name').value.trim(),p1=document.getElementById('tm-p1').value.trim(),p2=document.getElementById('tm-p2').value.trim();
   if(!name||!p1||!p2){showToast('Fill in all fields');return;}
   t.teams.push({id:Date.now(),name,p1,p2});
+  closeModal('m-team');renderTournament();
   await saveTournament(t);
-  closeModal('m-team');renderTournament();showToast(name+' added ✅');
+  showToast(name+' added ✅');
 }
 function doDeleteTeam(tid){
   var t=activeTournament();if(!t||t.phase!=='setup')return;
@@ -1690,31 +1711,47 @@ function doDeleteTeam(tid){
   if(!tm)return;
   showConfirm('Remove "'+tm.name+'"?','Team will be removed.',async function(){
     t.teams=t.teams.filter(function(x){return x.id!==id;});
-    await saveTournament(t);renderTournament();showToast(tm.name+' removed');
+    renderTournament();
+    await saveTournament(t);
+    showToast(tm.name+' removed');
   });
 }
-function startRoundRobin(){
+async function startRoundRobin(){
   var t=activeTournament();if(!t||t.teams.length<3){showToast('Need at least 3 teams');return;}
   t.rrMatches=generateRoundRobin(t.teams);t.phase='roundrobin';
-  saveTournament(t);renderTournament();showToast('Round robin started! '+t.rrMatches.length+' games generated.');
+  renderTournament();
+  await saveTournament(t);
+  showToast('Round robin started! '+t.rrMatches.length+' games generated.');
 }
 async function saveTournament(t){
-  try{var id=await dbSaveTournament(t);if(!t.db_id)t.db_id=id;}
+  // Guard: if already saving, skip to prevent concurrent inserts
+  if(t._saving) return;
+  t._saving = true;
+  try{
+    var id=await dbSaveTournament(t);
+    if(!t.db_id) t.db_id=id;
+  }
   catch(e){showToast('Error saving tournament');}
+  finally{t._saving=false;}
 }
-function saveMatchScore(mid){
+async function saveMatchScore(mid){
   var t=activeTournament();if(!t)return;
   var m=t.rrMatches.find(function(x){return x.id===mid;});if(!m)return;
   var v1=document.getElementById('sc-'+mid+'-1').value,v2=document.getElementById('sc-'+mid+'-2').value;
   if(v1===''||v2===''){showToast('Enter both scores');return;}
   m.s1=parseInt(v1);m.s2=parseInt(v2);
-  saveTournament(t);renderTournament();showToast('Score saved ✓');
+  renderTournament();
+  await saveTournament(t);
+  showToast('Score saved ✓');
 }
-function doSeedSemis(){
+async function doSeedSemis(){
   var t=activeTournament();if(!t||!rrComplete(t)){showToast('Score all games first');return;}
-  seedSemis(t);saveTournament(t);renderTournament();showToast('Semi-finals seeded! Top 4 advance.');
+  seedSemis(t);
+  renderTournament();
+  await saveTournament(t);
+  showToast('Semi-finals seeded! Top 4 advance.');
 }
-function saveKOScore(mid){
+async function saveKOScore(mid){
   var t=activeTournament();if(!t)return;
   var m=null;
   if(mid==='sf1'||mid==='sf2')m=t.sf.find(function(x){return x.id===mid;});
@@ -1724,7 +1761,9 @@ function saveKOScore(mid){
   if(v1===''||v2===''){showToast('Enter both scores');return;}
   m.s1=parseInt(v1);m.s2=parseInt(v2);
   if(t.sf&&t.sf.every(function(sf){return sf.s1!==null;})){t.final.t1=sfWinner(t,'sf1');t.final.t2=sfWinner(t,'sf2');}
-  saveTournament(t);renderTournament();showToast('Score saved ✓');
+  renderTournament();
+  await saveTournament(t);
+  showToast('Score saved ✓');
 }
 
 
