@@ -98,7 +98,7 @@ nav{background:linear-gradient(135deg,#0A1018 0%,#0F1923 60%,#140800 100%);borde
 .rsvp-hero p{color:rgba(255,255,255,.7);font-size:0.87rem;margin-top:3px;}
 .rsvp-card{background:#1A2433;border:1.5px solid var(--border);border-radius:14px;padding:18px;margin-bottom:14px;}
 .rsvp-card h3{font-family:'Syne',sans-serif;font-size:0.95rem;font-weight:800;color:var(--green);margin-bottom:13px;}
-.rsvp-opts{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;margin-bottom:14px;}
+.rsvp-opts{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:14px;}
 .rsvp-opt{padding:11px 7px;border-radius:9px;border:2px solid #2C3E52;text-align:center;cursor:pointer;transition:all .15s;background:#0F1923;}
 .rsvp-opt:hover{border-color:#999;}
 .rsvp-opt.sel-going{border-color:#D4A017;background:rgba(212,160,23,.15);}
@@ -368,7 +368,6 @@ nav{background:linear-gradient(135deg,#0A1018 0%,#0F1923 60%,#140800 100%);borde
     <div class="frow"><label>Status</label>
       <select id="p-status">
         <option value="going">✅ Going</option>
-        <option value="maybe">🤔 Maybe</option>
         <option value="notgoing">❌ Not going</option>
       </select>
     </div>
@@ -1115,6 +1114,10 @@ function renderRSVP(){
   let maybeChips=maybe.map(p=>'<div class="chip maybe"><div class="av">'+initials(p.name)+'</div>'+p.name+'</div>').join('');
   const notgoing=s.players.filter(p=>p.status==='notgoing');
   let notgoingChips=notgoing.map(p=>'<div class="chip notgoing"><div class="av">'+initials(p.name)+'</div>'+p.name+'</div>').join('');
+  // Who hasn't voted yet — members not in any response list
+  const respondedIds=new Set(s.players.map(p=>p.id));
+  const notVoted=S.members.filter(m=>!respondedIds.has(m.id));
+  let notVotedChips=notVoted.map(m=>'<div class="chip" style="border-color:#2C3E52;opacity:.7"><div class="av" style="background:#2C3E52;color:#8A9AB0">'+initials(m.name)+'</div><span style="color:#8A9AB0">'+m.name+'</span></div>').join('');
   let upcomingHTML='';
   if(open.length>1){
     upcomingHTML='<div class="rsvp-card"><h3>Upcoming</h3>';
@@ -1126,13 +1129,13 @@ function renderRSVP(){
     +'<div class="frow"><label>Your name</label><select id="rsvp-sel" onchange="toggleGuestRow()"><option value="">— Select your name —</option>'+memberOptions+'<option value="guest">I\'m a guest</option></select></div>'
     +'<div class="frow" id="guest-rsvp-row" style="display:none"><label>Guest name</label><input type="text" id="rsvp-guest" placeholder="Enter your name"></div>'
     +'<div class="sec-lbl" style="margin-bottom:9px">Status</div>'
-    +'<div class="rsvp-opts"><div class="rsvp-opt sel-going" id="ro-going" onclick="selRSVP(this,\'going\')"><div class="emo">✅</div><div class="lbl">Going</div></div><div class="rsvp-opt" id="ro-maybe" onclick="selRSVP(this,\'maybe\')"><div class="emo">🤔</div><div class="lbl">Maybe</div></div><div class="rsvp-opt" id="ro-no" onclick="selRSVP(this,\'notgoing\')"><div class="emo">❌</div><div class="lbl">Can\'t make it</div></div></div>'
+    +'<div class="rsvp-opts"><div class="rsvp-opt sel-going" id="ro-going" onclick="selRSVP(this,\'going\')"><div class="emo">✅</div><div class="lbl">Going</div></div><div class="rsvp-opt" id="ro-no" onclick="selRSVP(this,\'notgoing\')"><div class="emo">❌</div><div class="lbl">Can\'t make it</div></div></div>'
     +'<button class="btn btn-lime" style="width:100%;justify-content:center" onclick="submitRSVP('+s.id+')">Confirm RSVP</button></div>'
     +'<div class="rsvp-card"><h3 style="font-family:Bebas Neue,cursive;color:#D4A017;letter-spacing:.05em;font-size:1.1rem">Attendance · '+going.length+'/'+s.maxPlayers+(spots?' · '+spots+' spot'+(spots>1?'s':'')+' left':' · FULL')+'</h3>'
     +'<div class="fill-bar" style="border-radius:6px;margin-bottom:13px"><div class="fill-bar-inner" style="width:'+fill+'%"></div></div>'
     +(going.length?'<div class="sec-lbl">✅ Going ('+going.length+')</div><div class="chips">'+goingChips+'</div>':'')
-    +(maybe.length?'<div class="sec-lbl" style="margin-top:9px">🤔 Maybe ('+maybe.length+')</div><div class="chips">'+maybeChips+'</div>':'')
-    +(notgoing.length?'<div class="sec-lbl" style="margin-top:9px">❌ Not going ('+notgoing.length+')</div><div class="chips">'+notgoingChips+'</div>':'')
+    +(notgoing.length?'<div class="sec-lbl" style="margin-top:10px">❌ Not going ('+notgoing.length+')</div><div class="chips">'+notgoingChips+'</div>':'')
+    +(notVotedChips?'<div class="sec-lbl" style="margin-top:10px;color:#8A9AB0">⏳ Not voted yet ('+notVoted.length+')</div><div class="chips">'+notVotedChips+'</div>':'')
     +'</div>'+upcomingHTML;
   _rsvpStatus='going';
 }
