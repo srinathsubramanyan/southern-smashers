@@ -475,6 +475,25 @@ nav{background:linear-gradient(135deg,#0A1018 0%,#0F1923 60%,#140800 100%);borde
   </div>
 </div>
 
+
+<!-- ADD CASUAL CREDIT MODAL -->
+<div class="overlay" id="m-credit">
+  <div class="modal">
+    <h3>💳 Add Credit</h3>
+    <input type="hidden" id="credit-member-id">
+    <p style="font-size:.85rem;color:#8A9AB0;margin-bottom:14px">Adding credit for <strong id="credit-member-name" style="color:#D4A017"></strong></p>
+    <div class="fgrid">
+      <div class="frow"><label>Amount (A$)</label><input type="number" id="credit-amount" placeholder="e.g. 100" min="1" step="1"></div>
+      <div class="frow"><label>Date</label><input type="date" id="credit-date"></div>
+    </div>
+    <div class="frow"><label>Note (optional)</label><input type="text" id="credit-note" placeholder="e.g. Bulk top-up for term"></div>
+    <div class="modal-btns">
+      <button class="btn btn-ghost" onclick="closeModal('m-credit')">Cancel</button>
+      <button class="btn btn-lime" onclick="saveCasualCredit()">Save Credit</button>
+    </div>
+  </div>
+</div>
+
 <!-- CONFIRM MODAL -->
 <div class="overlay" id="m-confirm">
   <div class="modal" style="max-width:340px">
@@ -911,11 +930,30 @@ function memberRunningBalance(member){
 
 function poolBalance(){
   const totalIn=S.feePayments.reduce((a,p)=>a+p.amount,0);
-  // Add casual payments received
-  const casualIn=S.casualPayments ? S.casualPayments.reduce((a,p)=>a+p.amount,0) : 0;
+  const casualIn=(S.casualPayments||[]).reduce((a,p)=>a+p.amount,0);
   const totalCourt=Object.values(S.sessionCosts||{}).reduce((a,v)=>a+v,0);
   const totalShuttle=S.shuttleCosts.reduce((a,c)=>a+c.amount,0);
   return totalIn+casualIn-totalCourt-totalShuttle;
+}
+
+// All-time credits paid by a casual member (sum of all top-ups ever)
+function casualCreditPaid(memberId){
+  return (S.casualPayments||[]).filter(p=>p.member_id===memberId).reduce((a,p)=>a+p.amount,0);
+}
+
+// All-time sessions attended by a casual member (across all sessions)
+function casualSessionsAttended(memberId){
+  return S.sessions.filter(s=>s.players.find(p=>p.id===memberId&&p.status==='going')).length;
+}
+
+// Running balance for a casual member (credit - cost used)
+function casualBalance(memberId){
+  return casualCreditPaid(memberId) - casualSessionsAttended(memberId)*CASUAL_FEE;
+}
+
+// Sessions attended this quarter only
+function casualSessionsInQ(memberId,q){
+  return sessionsInQ(q).filter(s=>s.players.find(p=>p.id===memberId&&p.status==='going')).length;
 }
 function feeAlert(){
   const bal=poolBalance(); const q=currentQuarter();
@@ -1261,26 +1299,26 @@ function renderFinance(){
   const permMembers=S.members.filter(m=>m.type==='permanent');
   const ai=feeAlert();
 
-  // ── Casual income breakdown per member ──────────────────────────────────
-  const casualMap={};
-  S.members.filter(m=>m.type==='casual').forEach(m=>{
-    casualMap[m.id]={id:m.id,name:m.name,sessions:[],totalOwed:0,totalPaid:0};
+  // ── Casual members — registered only (no guests), all-time balance model ─
+  const casualList = S.members.filter(m=>m.type==='casual').map(m=>{
+    const qSessions   = casualSessionsInQ(m.id, q);
+    const allSessions = casualSessionsAttended(m.id);
+    const allCredits  = casualCreditPaid(m.id);
+    const balance     = casualBalance(m.id);          // all-time: credit - cost
+    const qCost       = qSessions * CASUAL_FEE;       // cost accrued this quarter
+    // Recent payments this quarter for display
+    const qPayments   = (S.casualPayments||[]).filter(p=>p.member_id===m.id&&p.quarter===q);
+    const qPaid       = qPayments.reduce((a,p)=>a+p.amount,0);
+    // Sessions attended this quarter with dates
+    const qSessionDates = sessionsInQ(q)
+      .filter(s=>s.players.find(p=>p.id===m.id&&p.status==='going'))
+      .map(s=>s.date);
+    return {id:m.id, name:m.name, qSessions, qCost, qPaid, qSessionDates,
+            allSessions, allCredits, balance};
   });
-  sessions.forEach(s=>{
-    s.players.forEach(p=>{
-      if(p.type==='casual'&&p.status==='going'){
-        if(!casualMap[p.id]) casualMap[p.id]={id:p.id,name:p.name,sessions:[],totalOwed:0,totalPaid:0};
-        casualMap[p.id].sessions.push(s.date);
-        casualMap[p.id].totalOwed+=CASUAL_FEE;
-      }
-    });
-  });
-  (S.casualPayments||[]).filter(p=>p.quarter===q).forEach(p=>{
-    if(casualMap[p.member_id]) casualMap[p.member_id].totalPaid+=p.amount;
-  });
-  const casualList=Object.values(casualMap).filter(c=>c.sessions.length>0||c.totalPaid>0);
-  const casualIncomeOwed=casualList.reduce((a,c)=>a+c.totalOwed,0);
-  const casualIncomePaid=casualList.reduce((a,c)=>a+c.totalPaid,0);
+  const casualIncomeOwed  = casualList.reduce((a,c)=>a+c.qCost,0);
+  const casualIncomePaid  = (S.casualPayments||[]).filter(p=>p.quarter===q).reduce((a,p)=>a+p.amount,0);
+  const casualTotalCredit = casualList.reduce((a,c)=>a+c.allCredits,0);
 
   // ── Session cost rows ────────────────────────────────────────────────────
   let sessionCostRows='';
@@ -1320,18 +1358,23 @@ function renderFinance(){
       +'</tr>';
   }).join('');
 
-  // ── Casual income rows ───────────────────────────────────────────────────
+  // ── Casual member rows — balance model ──────────────────────────────────
   const casualRows=casualList.map(c=>{
-    const paid=c.totalPaid>=c.totalOwed*0.99&&c.totalOwed>0;
+    const balColor = c.balance >= 0 ? '#D4A017' : 'var(--red)';
+    const balLabel = c.balance >= 0
+      ? '<span style="color:#D4A017;font-weight:700">A$'+c.balance.toFixed(2)+' credit</span>'
+      : '<span style="color:var(--red);font-weight:700">A$'+Math.abs(c.balance).toFixed(2)+' owes</span>';
+    const qInfo = c.qSessions > 0
+      ? c.qSessions+' session'+(c.qSessions!==1?'s':'')+' this Q ('+c.qSessionDates.map(d=>fmtShort(d)).join(', ')+')'
+      : 'No sessions this quarter';
     return '<tr>'
       +'<td><strong>'+c.name+'</strong>'
-      +'<div style="font-size:.72rem;color:#8A9AB0">'+c.sessions.length+' session'+(c.sessions.length!==1?'s':'')+': '+c.sessions.map(d=>fmtShort(d)).join(', ')+'</div></td>'
-      +'<td style="font-weight:600;color:#D4A017">A$'+c.totalOwed.toFixed(2)+'</td>'
-      +'<td style="font-weight:600;color:'+(c.totalPaid>0?'#D4A017':'#8A9AB0')+'">A$'+c.totalPaid.toFixed(2)+'</td>'
-      +'<td>'+(paid
-        ?'<span style="color:#D4A017;font-size:.82rem;font-weight:600">✓ Paid</span>'
-        :'<button class="btn btn-lime btn-sm" onclick="markCasualPaid('+c.id+',\''+q+'\','+c.totalOwed+')">Mark Paid</button>')
-      +'</td></tr>';
+      +'<div style="font-size:.72rem;color:#8A9AB0">'+qInfo+'</div></td>'
+      +'<td style="font-size:.83rem;color:#D4A017">A$'+c.qCost.toFixed(2)+'<div style="font-size:.7rem;color:#8A9AB0">'+c.allSessions+' sessions all-time</div></td>'
+      +'<td style="font-size:.83rem">A$'+c.allCredits.toFixed(2)+'<div style="font-size:.7rem;color:#8A9AB0">all-time credit</div></td>'
+      +'<td>'+balLabel+'</td>'
+      +'<td><button class="btn btn-lime btn-sm" onclick="openAddCredit('+c.id+',\''+c.name.replace(/\'/g,"\\'")+'\')">＋ Credit</button></td>'
+      +'</tr>';
   }).join('');
 
   el.innerHTML=
@@ -1361,14 +1404,21 @@ function renderFinance(){
     +'<div style="font-size:.73rem;color:#8A9AB0;margin-bottom:10px">Split only among permanent members active on each session date (based on start/end dates).</div>'
     +sessionCostRows+'</div>'
 
-    +(casualList.length?
-      '<div class="fin-card"><h3>🎟️ Casual Income · A$'+CASUAL_FEE.toFixed(2)+'/session</h3>'
-      +'<div style="overflow-x:auto"><table class="tbl">'
-      +'<thead><tr><th>Name</th><th>Owed</th><th>Received</th><th></th></tr></thead>'
+    +'<div class="fin-card">'
+    +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:13px">'
+    +'<h3 style="margin:0">🎟️ Casual Members · A$'+CASUAL_FEE.toFixed(2)+'/session</h3>'
+    +'<button class="btn btn-ghost btn-sm" onclick="openAddMember()">＋ Add Casual</button>'
+    +'</div>'
+    +(casualList.length
+      ?'<div style="overflow-x:auto"><table class="tbl">'
+      +'<thead><tr><th>Name</th><th>Q Cost</th><th>Total Credit</th><th>Balance</th><th></th></tr></thead>'
       +'<tbody>'+casualRows+'</tbody></table></div>'
-      +'<div style="margin-top:9px;font-size:.76rem;color:#8A9AB0">Owed: <strong style="color:#D4A017">A$'+casualIncomeOwed.toFixed(2)+'</strong> · Received: <strong style="color:#D4A017">A$'+casualIncomePaid.toFixed(2)+'</strong> · Outstanding: <strong style="color:'+(casualIncomeOwed-casualIncomePaid>0.005?'var(--red)':'#D4A017')+'">A$'+(casualIncomeOwed-casualIncomePaid).toFixed(2)+'</strong></div>'
-      +'</div>'
-    :'')
+      +'<div style="margin-top:9px;font-size:.75rem;color:#8A9AB0">'
+      +'Q cost: <strong style="color:#D4A017">A$'+casualIncomeOwed.toFixed(2)+'</strong>'
+      +' · Total credits held: <strong style="color:#D4A017">A$'+casualTotalCredit.toFixed(2)+'</strong>'
+      +' · Balance = all credits paid minus all sessions attended (carries over forever)</div>'
+      :'<p style="color:var(--mid);font-size:.83rem">No casual members registered yet. Add members via ＋ Add Casual.</p>')
+    +'</div>'
 
     +'<div class="fin-card">'
     +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:13px">'
@@ -1384,16 +1434,33 @@ function renderFinance(){
 
 
 
-async function markCasualPaid(memberId, q, amount) {
+// Open credit modal for a casual member
+function openAddCredit(memberId, memberName) {
+  document.getElementById('credit-member-id').value   = memberId;
+  document.getElementById('credit-member-name').textContent = memberName;
+  document.getElementById('credit-amount').value = '';
+  document.getElementById('credit-note').value   = '';
+  document.getElementById('credit-date').value   = new Date().toISOString().split('T')[0];
+  openModal('m-credit');
+}
+
+async function saveCasualCredit() {
+  const memberId = parseInt(document.getElementById('credit-member-id').value);
+  const amount   = parseFloat(document.getElementById('credit-amount').value);
+  const note     = document.getElementById('credit-note').value.trim() || 'Top-up';
+  const date     = document.getElementById('credit-date').value;
+  if (!amount || amount <= 0) { showToast('Enter a valid amount'); return; }
+  if (!date) { showToast('Pick a date'); return; }
+  const quarter  = dateToQuarter(date);
   setLoading(true);
   try {
-    // Remove existing for this member+quarter then insert
-    await sb('casual_payments?member_id=eq.'+memberId+'&quarter=eq.'+q, 'DELETE');
-    const rows = await sb('casual_payments', 'POST', {member_id:memberId, quarter:q, amount});
-    S.casualPayments = (S.casualPayments||[]).filter(p=>!(p.member_id===memberId&&p.quarter===q));
-    S.casualPayments.push({id:rows[0].id, member_id:memberId, quarter:q, amount});
-    renderFinance(); showToast('Payment marked as received ✅');
-  } catch(e) { showToast('Error saving payment'); }
+    const rows = await sb('casual_payments', 'POST', {member_id:memberId, quarter, amount, note, date});
+    S.casualPayments = S.casualPayments || [];
+    S.casualPayments.push({id:rows[0].id, member_id:memberId, quarter, amount, note, date});
+    closeModal('m-credit');
+    renderFinance();
+    showToast('A$'+amount.toFixed(2)+' credit added ✅');
+  } catch(e) { showToast('Error saving credit'); }
   setLoading(false);
 }
 
