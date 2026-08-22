@@ -1299,24 +1299,43 @@ function renderFinance(){
   const permMembers=S.members.filter(m=>m.type==='permanent');
   const ai=feeAlert();
 
-  // ── Casual members — registered only (no guests), all-time balance model ─
+  // ── Registered casual members — balance model (all-time credit) ──────────
+  const memberIds = new Set(S.members.map(m=>m.id));
   const casualList = S.members.filter(m=>m.type==='casual').map(m=>{
-    const qSessions   = casualSessionsInQ(m.id, q);
-    const allSessions = casualSessionsAttended(m.id);
-    const allCredits  = casualCreditPaid(m.id);
-    const balance     = casualBalance(m.id);          // all-time: credit - cost
-    const qCost       = qSessions * CASUAL_FEE;       // cost accrued this quarter
-    // Recent payments this quarter for display
-    const qPayments   = (S.casualPayments||[]).filter(p=>p.member_id===m.id&&p.quarter===q);
-    const qPaid       = qPayments.reduce((a,p)=>a+p.amount,0);
-    // Sessions attended this quarter with dates
+    const qSessions     = casualSessionsInQ(m.id, q);
+    const allSessions   = casualSessionsAttended(m.id);
+    const allCredits    = casualCreditPaid(m.id);
+    const balance       = casualBalance(m.id);
+    const qCost         = qSessions * CASUAL_FEE;
     const qSessionDates = sessionsInQ(q)
       .filter(s=>s.players.find(p=>p.id===m.id&&p.status==='going'))
       .map(s=>s.date);
-    return {id:m.id, name:m.name, qSessions, qCost, qPaid, qSessionDates,
+    return {id:m.id, name:m.name, isGuest:false, qSessions, qCost, qSessionDates,
             allSessions, allCredits, balance};
   });
-  const casualIncomeOwed  = casualList.reduce((a,c)=>a+c.qCost,0);
+
+  // ── Guest players — attended sessions this quarter, not registered members ─
+  const guestMap = {};
+  sessions.forEach(s=>{
+    s.players.forEach(p=>{
+      if(p.type==='casual' && p.status==='going' && !memberIds.has(p.id)){
+        const key = p.name.trim().toLowerCase();
+        if(!guestMap[key]){
+          // find if they have a casual_payment record (keyed by player id)
+          const guestPaid = (S.casualPayments||[])
+            .filter(cp=>cp.member_id===p.id && cp.quarter===q)
+            .reduce((a,cp)=>a+cp.amount,0);
+          guestMap[key]={id:p.id, name:p.name, sessions:[], totalOwed:0, totalPaid:guestPaid};
+        }
+        guestMap[key].sessions.push(s.date);
+        guestMap[key].totalOwed += CASUAL_FEE;
+      }
+    });
+  });
+  const guestList = Object.values(guestMap);
+
+  const casualIncomeOwed  = casualList.reduce((a,c)=>a+c.qCost,0)
+                          + guestList.reduce((a,g)=>a+g.totalOwed,0);
   const casualIncomePaid  = (S.casualPayments||[]).filter(p=>p.quarter===q).reduce((a,p)=>a+p.amount,0);
   const casualTotalCredit = casualList.reduce((a,c)=>a+c.allCredits,0);
 
@@ -1373,8 +1392,26 @@ function renderFinance(){
       +'<td style="font-size:.83rem;color:#D4A017">A$'+c.qCost.toFixed(2)+'<div style="font-size:.7rem;color:#8A9AB0">'+c.allSessions+' sessions all-time</div></td>'
       +'<td style="font-size:.83rem">A$'+c.allCredits.toFixed(2)+'<div style="font-size:.7rem;color:#8A9AB0">all-time credit</div></td>'
       +'<td>'+balLabel+'</td>'
-      +'<td><button class="btn btn-lime btn-sm" onclick="openAddCredit('+c.id+',\''+c.name.replace(/\'/g,"\\'")+'\')">＋ Credit</button></td>'
+      +'<td style="display:flex;gap:5px">'
+      +'<button class="btn btn-lime btn-sm" onclick="openAddCredit('+c.id+',\''+c.name.replace(/\'/g,"\\'")+'\')">＋ Credit</button>'
+      +'<button class="btn btn-red btn-sm" onclick="doRemoveMember('+c.id+')">✕</button>'
+      +'</td>'
       +'</tr>';
+  }).join('');
+
+  // ── Guest rows ────────────────────────────────────────────────────────────
+  const guestRows = guestList.map(g=>{
+    const paid = g.totalPaid >= g.totalOwed * 0.99 && g.totalOwed > 0;
+    return '<tr>'
+      +'<td><strong>'+g.name+'</strong><span style="margin-left:6px;font-size:.68rem;background:#2C3E52;color:#8A9AB0;padding:1px 6px;border-radius:8px">guest</span>'
+      +'<div style="font-size:.72rem;color:#8A9AB0">'+g.sessions.map(d=>fmtShort(d)).join(', ')+'</div></td>'
+      +'<td>'+g.sessions.length+'</td>'
+      +'<td style="font-weight:600;color:#D4A017">A$'+g.totalOwed.toFixed(2)+'</td>'
+      +'<td style="color:'+(g.totalPaid>0?'#D4A017':'#8A9AB0')+'">A$'+g.totalPaid.toFixed(2)+'</td>'
+      +'<td>'+(paid
+        ?'<span style="color:#D4A017;font-size:.82rem;font-weight:600">✓ Paid</span>'
+        :'<button class="btn btn-lime btn-sm" onclick="markGuestPaid('+JSON.stringify(g.id)+',\''+q+'\','+g.totalOwed+')">Mark Paid</button>')
+      +'</td></tr>';
   }).join('');
 
   el.innerHTML=
@@ -1418,6 +1455,13 @@ function renderFinance(){
       +' · Total credits held: <strong style="color:#D4A017">A$'+casualTotalCredit.toFixed(2)+'</strong>'
       +' · Balance = all credits paid minus all sessions attended (carries over forever)</div>'
       :'<p style="color:var(--mid);font-size:.83rem">No casual members registered yet. Add members via ＋ Add Casual.</p>')
+    +(guestList.length
+      ?'<div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--border)">'
+      +'<div style="font-family:Bebas Neue,cursive;font-size:.9rem;color:#8A9AB0;letter-spacing:.08em;margin-bottom:10px">👤 GUEST PLAYERS THIS QUARTER</div>'
+      +'<table class="tbl"><thead><tr><th>Name</th><th>Sessions</th><th>Owed</th><th>Received</th><th></th></tr></thead><tbody>'
+      +guestRows
+      +'</tbody></table></div>'
+      :'')
     +'</div>'
 
     +'<div class="fin-card">'
@@ -1433,6 +1477,23 @@ function renderFinance(){
 }
 
 
+
+// Mark a guest player as paid for the quarter (simple, no credit system)
+async function markGuestPaid(playerId, q, amount) {
+  setLoading(true);
+  try {
+    // Use member_id = playerId (guest player id from session_players)
+    await sb('casual_payments?member_id=eq.'+playerId+'&quarter=eq.'+q, 'DELETE');
+    const rows = await sb('casual_payments', 'POST', {
+      member_id: playerId, quarter: q, amount,
+      note: 'Guest payment', date: new Date().toISOString().split('T')[0]
+    });
+    S.casualPayments = (S.casualPayments||[]).filter(p=>!(p.member_id===playerId&&p.quarter===q));
+    S.casualPayments.push({id:rows[0].id, member_id:playerId, quarter:q, amount, note:'Guest payment'});
+    renderFinance(); showToast('Payment received ✅');
+  } catch(e) { showToast('Error saving payment'); }
+  setLoading(false);
+}
 
 // Open credit modal for a casual member
 function openAddCredit(memberId, memberName) {
