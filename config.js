@@ -1,4 +1,4 @@
-/**
+/***
  * SOUTHERN SMASHERS — Monday Group Config
  * ─────────────────────────────────────────
  * Rename this file to config.js in your deployment folder.
