@@ -177,6 +177,8 @@ nav{background:var(--nav-bg);border-bottom:2px solid var(--nav-border);padding:0
 .mpill:hover:not(.sel){border-color:#999;}
 .inline-num{width:76px;padding:5px 7px;border:1.5px solid var(--border);border-radius:6px;font-size:0.82rem;outline:none;font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);}
 .inline-num:focus{border-color:var(--accent);}
+.stock-summary-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-bottom:14px;}
+@media(min-width:420px){.stock-summary-grid{grid-template-columns:repeat(4,1fr);}}
 .usage-log-grid{display:grid;grid-template-columns:1fr;gap:8px;margin-bottom:8px;}
 .usage-log-grid .btn{width:100%;justify-content:center;}
 @media(min-width:520px){.usage-log-grid{grid-template-columns:1fr 80px 1.3fr auto;align-items:end;}.usage-log-grid .btn{width:auto;}}
@@ -2067,9 +2069,10 @@ async function renderShuttles() {
     // Stock summary card
     '<div class="fin-card">'
     +'<h3>📦 Stock Summary</h3>'
-    +'<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:14px">'  
+    +'<div class="stock-summary-grid">'
     +'<div class="fin-stat"><div class="num" style="color:var(--accent)">'+totalBought+'</div><div class="lbl">Tubes Bought</div></div>'
     +'<div class="fin-stat"><div class="num" style="color:var(--accent2)">'+totalUsed+'</div><div class="lbl">Tubes Used</div></div>'
+    +'<div class="fin-stat"><div class="num" style="color:#8B5CF6">'+totalSold+'</div><div class="lbl">Tubes Sold</div></div>'
     +'<div class="fin-stat"><div class="num" style="color:'+stockColor+'">'+stockLeft+'</div><div class="lbl">In Stock</div></div>'
     +'</div>'
     +'<div style="margin-bottom:6px;font-size:.75rem;color:var(--muted);display:flex;justify-content:space-between"><span>Stock level</span><span style="color:'+stockColor+'">'+stockPct+'%</span></div>'
