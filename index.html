@@ -1123,8 +1123,14 @@ function renderSessions(){
     el.innerHTML='<div class="empty"><div class="ico">🏸</div><h3>No sessions yet</h3><p>Create your first session</p></div>';
     return;
   }
-  const sorted=[...S.sessions].sort((a,b)=>a.date.localeCompare(b.date));
-  el.innerHTML=sorted.map(s=>buildSessionCard(s)).join('');
+  const sorted=[...S.sessions].sort((a,b)=>b.date.localeCompare(a.date));
+  const visible=_sessionsShowAll ? sorted : sorted.slice(0,5);
+  el.innerHTML=visible.map(s=>buildSessionCard(s)).join('')
+    + (!_sessionsShowAll && sorted.length>5
+        ? '<button class="btn btn-ghost" style="width:100%;margin-top:6px" onclick="_sessionsShowAll=true;renderSessions()">Show older sessions ('+(sorted.length-5)+' more)</button>'
+        : (_sessionsShowAll && sorted.length>5
+            ? '<button class="btn btn-ghost" style="width:100%;margin-top:6px" onclick="_sessionsShowAll=false;renderSessions()">Show fewer</button>'
+            : ''));
 }
 
 function buildSessionCard(s){
@@ -1241,7 +1247,7 @@ async function createSession(){
 }
 
 // ── PLAYERS ───────────────────────────────────────────────────────────────
-let _curSid=null,_pending=[];
+let _curSid=null,_pending=[],_sessionsShowAll=false;
 
 function doOpenAddPlayer(sid){
   _curSid=sid; _pending=[];
