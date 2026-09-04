@@ -427,7 +427,7 @@ nav{background:var(--nav-bg);border-bottom:2px solid var(--nav-border);padding:0
     <div class="frow"><label>Select members</label><div class="pill-row" id="mpills"></div></div>
     <div class="frow">
       <label>Or add a guest</label>
-      <div style="display:flex;gap:7px"><input type="text" id="guest-in" placeholder="Guest name" style="flex:1"><button class="btn btn-ghost btn-sm" onclick="addGuest()">Add</button></div>
+      <div style="display:flex;gap:7px;flex-wrap:wrap"><input type="text" id="guest-in" placeholder="Guest name" style="flex:1;min-width:120px"><select id="guest-invited-by" style="flex:1;min-width:120px"></select><button class="btn btn-ghost btn-sm" onclick="addGuest()">Add</button></div>
     </div>
     <div class="frow"><label>Status</label>
       <select id="p-status">
@@ -786,6 +786,7 @@ async function boot() {
         status: p.status,
         member: !!p.member_id,
         player_row_id: p.id,
+        invited_by_member_id: p.invited_by_member_id || null,
       }))
     }));
 
@@ -957,6 +958,12 @@ function availableQuarters() {
   return [...new Set(result)];
 }
 function initials(name) { return name.split(' ').map(n=>n[0]).join('').slice(0,2).toUpperCase(); }
+function memberNameById(id) { const m=S.members.find(x=>x.id===id); return m ? m.name : null; }
+function guestTag(p){
+  if(p.member || !p.invited_by_member_id) return '';
+  const inviter=memberNameById(p.invited_by_member_id);
+  return inviter ? '<span style="color:var(--muted);font-size:.7rem"> · via '+inviter+'</span>' : '';
+}
 
 // Returns true if a permanent member was active on a given date
 function isMemberActiveOn(member, dateStr) {
@@ -1128,7 +1135,7 @@ function buildSessionCard(s){
   const fill=Math.min(100,Math.round(going.length/s.maxPlayers*100));
   const bc=s.status==='closed'?'b-closed':spots===0?'b-full':'b-open';
   const bt=s.status==='closed'?'Closed':spots===0?'Full':'Open';
-  const chipGroup=(arr,cls)=>arr.map(p=>'<div class="chip '+cls+'"><div class="av">'+initials(p.name)+'</div>'+p.name+'<button class="chip-x" onclick="doRemovePlayer('+s.id+','+(p.player_row_id||p.id)+')">×</button></div>').join('');
+  const chipGroup=(arr,cls)=>arr.map(p=>'<div class="chip '+cls+'"><div class="av">'+initials(p.name)+'</div>'+p.name+guestTag(p)+'<button class="chip-x" onclick="doRemovePlayer('+s.id+','+(p.player_row_id||p.id)+')">×</button></div>').join('');
   const closeBtn=s.status==='open'
     ?'<button class="btn btn-red btn-sm" onclick="doCloseSession('+s.id+')">🔒 Close</button>'
     :'<button class="btn btn-ghost btn-sm" onclick="doReopenSession('+s.id+')">🔓 Reopen</button>';
@@ -1246,6 +1253,8 @@ function doOpenAddPlayer(sid){
     ?avail.map(m=>'<div class="mpill" onclick="togglePill(this)" data-id="'+m.id+'" data-name="'+m.name+'" data-type="'+m.type+'">'+m.name+' <span class="mtype mtype-'+(m.type==='permanent'?'perm':'cas')+'">'+(m.type==='permanent'?'Perm':'Casual')+'</span></div>').join('')
     :'<span style="color:var(--mid);font-size:.83rem">All members added</span>';
   document.getElementById('guest-in').value='';
+  document.getElementById('guest-invited-by').innerHTML='<option value="">— Invited by —</option>'
+    +S.members.map(m=>'<option value="'+m.id+'">'+m.name+'</option>').join('');
   openModal('m-player');
 }
 function togglePill(el){
@@ -1257,11 +1266,16 @@ function togglePill(el){
 function addGuest(){
   const name=document.getElementById('guest-in').value.trim();
   if(!name)return;
-  _pending.push({id:Date.now()+Math.random(),name,type:'casual',member:false});
+  const invitedByEl=document.getElementById('guest-invited-by');
+  const invitedById=invitedByEl.value;
+  if(!invitedById){showToast('Select who invited this guest');return;}
+  const inviterName=invitedByEl.options[invitedByEl.selectedIndex].textContent;
+  _pending.push({id:Date.now()+Math.random(),name,type:'casual',member:false,invited_by_member_id:parseInt(invitedById,10)});
   const el=document.createElement('div');
-  el.className='mpill sel'; el.textContent=name+' (guest)';
+  el.className='mpill sel'; el.textContent=name+' (guest, via '+inviterName+')';
   document.getElementById('mpills').appendChild(el);
   document.getElementById('guest-in').value='';
+  invitedByEl.value='';
   showToast(name+' staged');
 }
 async function confirmPlayers(){
@@ -1271,7 +1285,7 @@ async function confirmPlayers(){
   try{
     for(const p of _pending){
       if(s.players.find(x=>x.id===p.id))continue;
-      const payload={session_id:_curSid,name:p.name,type:p.type||'casual',status,member_id:p.member?p.id:null};
+      const payload={session_id:_curSid,name:p.name,type:p.type||'casual',status,member_id:p.member?p.id:null,invited_by_member_id:p.invited_by_member_id||null};
       const rows=await sb('session_players','POST',payload);
       s.players.push({...p,status,player_row_id:rows[0].id});
     }
@@ -1313,10 +1327,10 @@ function renderRSVP(){
   const spots=Math.max(0,s.maxPlayers-going.length);
   const fill=Math.min(100,Math.round(going.length/s.maxPlayers*100));
   let memberOptions=S.members.map(m=>'<option value="'+m.id+'">'+m.name+' ('+(m.type==='permanent'?'Permanent':'Casual')+')</option>').join('');
-  let goingChips=going.map(p=>'<div class="chip going"><div class="av">'+initials(p.name)+'</div>'+p.name+'</div>').join('');
-  let maybeChips=maybe.map(p=>'<div class="chip maybe"><div class="av">'+initials(p.name)+'</div>'+p.name+'</div>').join('');
+  let goingChips=going.map(p=>'<div class="chip going"><div class="av">'+initials(p.name)+'</div>'+p.name+guestTag(p)+'</div>').join('');
+  let maybeChips=maybe.map(p=>'<div class="chip maybe"><div class="av">'+initials(p.name)+'</div>'+p.name+guestTag(p)+'</div>').join('');
   const notgoing=s.players.filter(p=>p.status==='notgoing');
-  let notgoingChips=notgoing.map(p=>'<div class="chip notgoing"><div class="av">'+initials(p.name)+'</div>'+p.name+'</div>').join('');
+  let notgoingChips=notgoing.map(p=>'<div class="chip notgoing"><div class="av">'+initials(p.name)+'</div>'+p.name+guestTag(p)+'</div>').join('');
   // Who hasn't voted yet — members not in any response list
   const respondedIds=new Set(s.players.map(p=>p.id));
   const notVoted=S.members.filter(m=>!respondedIds.has(m.id));
@@ -1330,7 +1344,10 @@ function renderRSVP(){
   el.innerHTML='<div class="rsvp-hero"><h1>🏸 Are you in?</h1><p>'+fmtDate(s.date)+' · '+s.time+' · '+s.venue+'</p>'+(s.notes?'<p style="margin-top:5px;font-size:.8rem">📌 '+s.notes+'</p>':'')+'</div>'
     +'<div class="rsvp-card"><h3 style="font-family:Bebas Neue,cursive;color:var(--accent);letter-spacing:.05em;font-size:1.1rem">Your RSVP</h3>'
     +'<div class="frow"><label>Your name</label><select id="rsvp-sel" onchange="toggleGuestRow()"><option value="">— Select your name —</option>'+memberOptions+'<option value="guest">I\'m a guest</option></select></div>'
-    +'<div class="frow" id="guest-rsvp-row" style="display:none"><label>Guest name</label><input type="text" id="rsvp-guest" placeholder="Enter your name"></div>'
+    +'<div class="frow" id="guest-rsvp-row" style="display:none">'
+    +  '<label>Guest name</label><input type="text" id="rsvp-guest" placeholder="Enter your name">'
+    +  '<label style="margin-top:9px">Invited by</label><select id="rsvp-invited-by"><option value="">— Who invited you? —</option>'+memberOptions+'</select>'
+    +'</div>'
     +'<div class="sec-lbl" style="margin-bottom:9px">Status</div>'
     +'<div class="rsvp-opts"><div class="rsvp-opt sel-going" id="ro-going" onclick="selRSVP(this,\'going\')"><div class="emo">✅</div><div class="lbl">Going</div></div><div class="rsvp-opt" id="ro-no" onclick="selRSVP(this,\'notgoing\')"><div class="emo">❌</div><div class="lbl">Can\'t make it</div></div></div>'
     +'<button class="btn btn-lime" style="width:100%;justify-content:center" onclick="submitRSVP('+s.id+')">Confirm RSVP</button></div>'
@@ -1348,10 +1365,13 @@ async function submitRSVP(sid){
   const s=S.sessions.find(x=>x.id===sid);
   const sel=document.getElementById('rsvp-sel');
   if(!sel.value){showToast('Select your name');return;}
-  let id,name,type,member;
+  let id,name,type,member,invitedById=null;
   if(sel.value==='guest'){
     name=document.getElementById('rsvp-guest').value.trim();
     if(!name){showToast('Enter your name');return;}
+    invitedById=document.getElementById('rsvp-invited-by').value;
+    if(!invitedById){showToast('Select who invited you');return;}
+    invitedById=parseInt(invitedById,10);
     id=Date.now();type='casual';member=false;
   }else{
     const m=S.members.find(x=>x.id==sel.value);
@@ -1364,9 +1384,9 @@ async function submitRSVP(sid){
       await sb('session_players?id=eq.'+existing.player_row_id,'PATCH',{status:_rsvpStatus});
       existing.status=_rsvpStatus;
     }else{
-      const payload={session_id:sid,name,type,status:_rsvpStatus,member_id:member?id:null};
+      const payload={session_id:sid,name,type,status:_rsvpStatus,member_id:member?id:null,invited_by_member_id:invitedById};
       const rows=await sb('session_players','POST',payload);
-      s.players.push({id,name,type,status:_rsvpStatus,member,player_row_id:rows[0].id});
+      s.players.push({id,name,type,status:_rsvpStatus,member,player_row_id:rows[0].id,invited_by_member_id:invitedById});
     }
     renderRSVP(); showToast('RSVP saved for '+name+' ✅');
   }catch(e){showToast('Error saving RSVP');}
@@ -1489,7 +1509,8 @@ function _buildGuestRows(guestList, q) {
     return '<tr>'
       + '<td><strong>' + g.name + '</strong>'
       + '<span style="margin-left:6px;font-size:.68rem;background:var(--border);color:var(--muted);padding:1px 6px;border-radius:8px">guest</span>'
-      + '<div style="font-size:.72rem;color:var(--muted)">' + g.sessions.map(function(d){ return fmtShort(d); }).join(', ') + '</div></td>'
+      + '<div style="font-size:.72rem;color:var(--muted)">' + g.sessions.map(function(d){ return fmtShort(d); }).join(', ') + '</div>'
+      + (g.invitedBy ? '<div style="font-size:.72rem;color:var(--muted)">via ' + g.invitedBy + '</div>' : '') + '</td>'
       + '<td>' + g.sessions.length + '</td>'
       + '<td style="font-weight:600;color:var(--accent)">A$' + g.totalOwed.toFixed(2) + '</td>'
       + '<td style="color:' + (g.totalPaid > 0 ? 'var(--accent)' : 'var(--muted)') + '">A$' + g.totalPaid.toFixed(2) + '</td>'
@@ -1544,7 +1565,7 @@ function renderFinance(){
           var guestPaid = (S.casualPayments||[])
             .filter(function(cp){ return cp.member_id===p.id && cp.quarter===q; })
             .reduce(function(a,cp){ return a+cp.amount; }, 0);
-          guestMap[key] = {id:p.id, name:p.name, sessions:[], totalOwed:0, totalPaid:guestPaid};
+          guestMap[key] = {id:p.id, name:p.name, sessions:[], totalOwed:0, totalPaid:guestPaid, invitedBy:memberNameById(p.invited_by_member_id)};
         }
         guestMap[key].sessions.push(s.date);
         guestMap[key].totalOwed += CASUAL_FEE;
