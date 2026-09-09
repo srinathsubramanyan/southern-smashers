@@ -2261,6 +2261,76 @@ function renderPinSettings() {
     +'</div>';
 }
 
+async function setCasualFee(fee) {
+  if (!fee || fee <= 0) { showToast('Enter a valid fee'); renderFinance(); return; }
+  setLoading(true);
+  try {
+    // Delete existing then insert (app_settings.key is unique)
+    await sb('app_settings?key=eq.casual_fee', 'DELETE');
+    await sb('app_settings', 'POST', { key: 'casual_fee', value: String(fee) });
+    CASUAL_FEE = fee;
+    renderFinance();
+    showToast('Casual fee updated to A$' + fee.toFixed(2) + ' ✓');
+  } catch (e) {
+    showToast('Error saving casual fee');
+    renderFinance(); // reset input back to the actual saved value
+  } finally {
+    setLoading(false);
+  }
+}
+
+async function markGuestPaid(guestId, quarter, amount) {
+  setLoading(true);
+  try {
+    const payload = {
+      member_id: guestId,
+      quarter,
+      amount,
+      date: new Date().toISOString().split('T')[0],
+      note: 'Guest payment',
+    };
+    const rows = await sb('casual_payments', 'POST', payload);
+    S.casualPayments.push(rows[0]);
+    renderFinance();
+    showToast('Marked as paid ✓');
+  } catch (e) {
+    showToast('Error marking as paid');
+  } finally {
+    setLoading(false);
+  }
+}
+
+function openAddCredit(memberId, memberName) {
+  document.getElementById('credit-member-id').value = memberId;
+  document.getElementById('credit-member-name').textContent = memberName;
+  document.getElementById('credit-amount').value = '';
+  document.getElementById('credit-date').value = new Date().toISOString().split('T')[0];
+  document.getElementById('credit-note').value = '';
+  openModal('m-credit');
+}
+
+async function saveCasualCredit() {
+  const memberId = parseInt(document.getElementById('credit-member-id').value, 10);
+  const amount   = parseFloat(document.getElementById('credit-amount').value);
+  const date     = document.getElementById('credit-date').value;
+  const note     = document.getElementById('credit-note').value.trim();
+  if (!amount || amount <= 0) { showToast('Enter a valid amount'); return; }
+  if (!date) { showToast('Select a date'); return; }
+  setLoading(true);
+  try {
+    const payload = { member_id: memberId, quarter: dateToQuarter(date), amount, date, note };
+    const rows = await sb('casual_payments', 'POST', payload);
+    S.casualPayments.push(rows[0]);
+    closeModal('m-credit');
+    renderFinance();
+    showToast('Credit of A$' + amount.toFixed(2) + ' added ✓');
+  } catch (e) {
+    showToast('Error saving credit');
+  } finally {
+    setLoading(false);
+  }
+}
+
 async function savePin(context) {
   const input = document.getElementById('pin-'+context+'-new');
   const newPin = input.value.trim();
@@ -2309,7 +2379,18 @@ const ROLES = {
 
 function getRole() {
   const p = new URLSearchParams(window.location.search);
-  return p.get('role') === 'admin' ? 'admin' : 'player';
+  const fromUrl = p.get('role');
+  if (fromUrl === 'admin' || fromUrl === 'player') {
+    try { localStorage.setItem('appRole', fromUrl); } catch(e){}
+    return fromUrl;
+  }
+  // No query string — likely launched from a home screen icon, whose
+  // start_url is fixed by manifest.json and never carries ?role=...
+  // Fall back to whatever role was saved the first time this device
+  // visited a proper role link in Safari.
+  let saved;
+  try { saved = localStorage.getItem('appRole'); } catch(e){}
+  return saved === 'admin' ? 'admin' : 'player';
 }
 
 function applyRole() {
