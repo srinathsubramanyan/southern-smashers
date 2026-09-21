@@ -413,6 +413,8 @@ nav{background:var(--nav-bg);border-bottom:2px solid var(--nav-border);padding:0
     <div class="frow"><label>Venue</label><input type="text" id="f-venue" placeholder="e.g. Leisure Centre Court 2"></div>
     <div class="frow"><label>Max Players</label><input type="number" id="f-max" value="12" min="2" max="40"></div>
     <div class="frow"><label>Notes (optional)</label><textarea id="f-notes" placeholder="e.g. Bring extra shuttles"></textarea></div>
+    <div class="frow"><label style="display:flex;align-items:center;gap:8px;cursor:pointer;text-transform:none;letter-spacing:normal"><input type="checkbox" id="f-recurring" onchange="toggleRecurringRow()" style="width:auto;margin:0"> Repeat weekly</label></div>
+    <div class="frow" id="recurring-row" style="display:none"><label>Number of weeks (including this one)</label><input type="number" id="f-weeks" value="4" min="2" max="26"></div>
     <div class="modal-btns">
       <button class="btn btn-ghost" onclick="closeModal('m-session')">Cancel</button>
       <button class="btn btn-lime" onclick="createSession()">Create</button>
@@ -1133,20 +1135,26 @@ function renderSessions(){
             : ''));
 }
 
+function sessionBadge(s,spots){
+  if(spots===0) return '<span class="badge b-full">Full</span>';
+  const today=new Date(); today.setHours(0,0,0,0);
+  const d=new Date(s.date+'T00:00:00');
+  const diffDays=Math.round((d-today)/86400000);
+  if(diffDays<0) return '<span class="badge b-closed">Past</span>';
+  if(diffDays===0) return '<span class="badge b-open">Today</span>';
+  if(diffDays===1) return '<span class="badge b-open">Tomorrow</span>';
+  if(diffDays<=6) return '<span class="badge b-open">In '+diffDays+' days</span>';
+  return '<span class="badge" style="background:var(--border);color:var(--muted)">Upcoming</span>';
+}
 function buildSessionCard(s){
   const going=s.players.filter(p=>p.status==='going');
   const maybe=s.players.filter(p=>p.status==='maybe');
   const notgoing=s.players.filter(p=>p.status==='notgoing');
   const spots=Math.max(0,s.maxPlayers-going.length);
   const fill=Math.min(100,Math.round(going.length/s.maxPlayers*100));
-  const bc=s.status==='closed'?'b-closed':spots===0?'b-full':'b-open';
-  const bt=s.status==='closed'?'Closed':spots===0?'Full':'Open';
   const chipGroup=(arr,cls)=>arr.map(p=>'<div class="chip '+cls+'"><div class="av">'+initials(p.name)+'</div>'+p.name+guestTag(p)+'<button class="chip-x" onclick="doRemovePlayer('+s.id+','+(p.player_row_id||p.id)+')">×</button></div>').join('');
-  const closeBtn=s.status==='open'
-    ?'<button class="btn btn-red btn-sm" onclick="doCloseSession('+s.id+')">🔒 Close</button>'
-    :'<button class="btn btn-ghost btn-sm" onclick="doReopenSession('+s.id+')">🔓 Reopen</button>';
   return '<div class="card" id="card-'+s.id+'">'
-    +'<div class="card-hdr"><div><h2>'+fmtDate(s.date)+'</h2><p>'+s.time+' · '+s.venue+'</p></div><span class="badge '+bc+'">'+bt+'</span></div>'
+    +'<div class="card-hdr"><div><h2>'+fmtDate(s.date)+'</h2><p>'+s.time+' · '+s.venue+'</p></div>'+sessionBadge(s,spots)+'</div>'
     +'<div class="fill-bar"><div class="fill-bar-inner" style="width:'+fill+'%"></div></div>'
     +'<div class="card-body">'
     +'<div class="stats-row">'
@@ -1163,7 +1171,6 @@ function buildSessionCard(s){
     +'<button class="btn btn-green btn-sm" onclick="requireAdmin(()=>doOpenAddPlayer('+s.id+'))">➕ Add Player</button>'
     +'<button class="btn btn-wa btn-sm" onclick="doOpenWA('+s.id+')"><svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg> WhatsApp</button>'
     +'<button class="btn btn-ghost btn-sm" onclick="doCopyLink('+s.id+')">🔗 RSVP Link</button>'
-    +closeBtn
     +'<button class="btn btn-red btn-sm" style="margin-left:auto" onclick="requireAdmin(()=>doDeleteSession('+s.id+'))">🗑 Delete</button>'
     +'</div></div></div>';
 }
@@ -1177,26 +1184,6 @@ function doDeleteSession(id){
       delete S.sessionCosts[id];
       renderSessions(); showToast('Session deleted');
     }catch(e){showToast('Error deleting session');}
-    setLoading(false);
-  });
-}
-function doCloseSession(id){
-  requireAdmin(async function(){
-    const s=S.sessions.find(x=>x.id===id);
-    if(!s)return;
-    setLoading(true);
-    try{await sb('sessions?id=eq.'+id,'PATCH',{status:'closed'});s.status='closed';renderSessions();}
-    catch(e){showToast('Error');}
-    setLoading(false);
-  });
-}
-function doReopenSession(id){
-  requireAdmin(async function(){
-    const s=S.sessions.find(x=>x.id===id);
-    if(!s)return;
-    setLoading(true);
-    try{await sb('sessions?id=eq.'+id,'PATCH',{status:'open'});s.status='open';renderSessions();}
-    catch(e){showToast('Error');}
     setLoading(false);
   });
 }
@@ -1220,29 +1207,43 @@ function openNewSession(){
   document.getElementById('f-venue').value='';
   document.getElementById('f-notes').value='';
   document.getElementById('f-max').value='12';
+  document.getElementById('f-recurring').checked=false;
+  document.getElementById('f-weeks').value='4';
+  document.getElementById('recurring-row').style.display='none';
   requireAdmin(()=>openModal('m-session'));
+}
+function toggleRecurringRow(){
+  document.getElementById('recurring-row').style.display=document.getElementById('f-recurring').checked?'block':'none';
 }
 
 async function createSession(){
   const date=document.getElementById('f-date').value;
   if(!date){showToast('Pick a date');return;}
-  const newSess={
-    date, time:document.getElementById('f-time').value,
-    venue:document.getElementById('f-venue').value.trim()||'TBC',
-    maxPlayers:parseInt(document.getElementById('f-max').value)||12,
-    notes:document.getElementById('f-notes').value.trim(),
-    status:'open', players:[]
-  };
+  const time=document.getElementById('f-time').value;
+  const venue=document.getElementById('f-venue').value.trim()||'TBC';
+  const maxPlayers=parseInt(document.getElementById('f-max').value)||12;
+  const notes=document.getElementById('f-notes').value.trim();
+  const isRecurring=document.getElementById('f-recurring').checked;
+  const weeks=isRecurring?Math.max(2,Math.min(26,parseInt(document.getElementById('f-weeks').value)||4)):1;
+
+  const dates=[];
+  const base=new Date(date+'T12:00:00');
+  for(let i=0;i<weeks;i++){
+    const d=new Date(base);
+    d.setDate(d.getDate()+i*7);
+    dates.push(d.toISOString().split('T')[0]);
+  }
+
   setLoading(true);
   try{
-    const rows=await sb('sessions','POST',{
-      date:newSess.date, time:newSess.time, venue:newSess.venue,
-      max_players:newSess.maxPlayers, notes:newSess.notes, status:'open'
+    const payload=dates.map(d=>({date:d, time, venue, max_players:maxPlayers, notes}));
+    const rows=await sb('sessions','POST',payload);
+    rows.forEach(r=>{
+      S.sessions.push({...r, maxPlayers:r.max_players, players:[]});
     });
-    newSess.id=rows[0].id;
-    S.sessions.push(newSess);
-    closeModal('m-session'); renderSessions(); showToast('Session created ✅');
-  }catch(e){showToast('Error creating session');}
+    closeModal('m-session'); renderSessions();
+    showToast(weeks>1 ? weeks+' sessions created ✅' : 'Session created ✅');
+  }catch(e){showToast('Error creating session'+(weeks>1?'s':''));}
   setLoading(false);
 }
 
@@ -1323,11 +1324,22 @@ function doCopyLink(sid){navigator.clipboard.writeText(location.href.split('?')[
 // ── RSVP ──────────────────────────────────────────────────────────────────
 let _rsvpStatus='going';
 
+function getRSVPWindowSessions(){
+  const today=new Date(); today.setHours(0,0,0,0);
+  const windowEnd=new Date(today); windowEnd.setDate(windowEnd.getDate()+6);
+  return S.sessions.filter(function(s){
+    const d=new Date(s.date+'T00:00:00');
+    return d>=today && d<=windowEnd;
+  }).sort(function(a,b){ return a.date.localeCompare(b.date); });
+}
+
 function renderRSVP(){
   const el=document.getElementById('rsvp-content');
-  const open=S.sessions.filter(s=>s.status==='open').sort((a,b)=>a.date.localeCompare(b.date));
-  if(!open.length){el.innerHTML='<div class="empty"><div class="ico">📭</div><h3>No open sessions</h3><p>Nothing to RSVP to right now</p></div>';return;}
-  const s=open[0];
+  const upcoming=getRSVPWindowSessions();
+  const sidParam=new URLSearchParams(window.location.search).get('s');
+  let s=sidParam ? S.sessions.find(function(x){ return x.id===parseInt(sidParam,10); }) : null;
+  if(!s) s=upcoming[0];
+  if(!s){el.innerHTML='<div class="empty"><div class="ico">📭</div><h3>No upcoming session</h3><p>Check back closer to game day</p></div>';return;}
   const going=s.players.filter(p=>p.status==='going');
   const maybe=s.players.filter(p=>p.status==='maybe');
   const spots=Math.max(0,s.maxPlayers-going.length);
@@ -1342,9 +1354,10 @@ function renderRSVP(){
   const notVoted=S.members.filter(m=>!respondedIds.has(m.id));
   let notVotedChips=notVoted.map(m=>'<div class="chip" style="border-color:var(--border);opacity:.7"><div class="av" style="background:var(--border);color:var(--muted)">'+initials(m.name)+'</div><span style="color:var(--muted)">'+m.name+'</span></div>').join('');
   let upcomingHTML='';
-  if(open.length>1){
-    upcomingHTML='<div class="rsvp-card"><h3>Upcoming</h3>';
-    open.slice(1).forEach(u=>{upcomingHTML+='<div style="padding:8px 0;border-bottom:1px solid var(--border);font-size:.85rem;display:flex;justify-content:space-between;align-items:center"><div><strong>'+fmtDate(u.date)+'</strong> · '+u.time+'<br><span style="color:var(--mid);font-size:.78rem">'+u.venue+'</span></div><span class="badge b-open">Open</span></div>';});
+  const others=upcoming.filter(function(u){ return u.id!==s.id; });
+  if(others.length){
+    upcomingHTML='<div class="rsvp-card"><h3>Also this week</h3>';
+    others.forEach(function(u){upcomingHTML+='<div style="padding:8px 0;border-bottom:1px solid var(--border);font-size:.85rem"><strong>'+fmtDate(u.date)+'</strong> · '+u.time+'<br><span style="color:var(--mid);font-size:.78rem">'+u.venue+'</span></div>';});
     upcomingHTML+='</div>';
   }
   el.innerHTML='<div class="rsvp-hero"><h1>🏸 Are you in?</h1><p>'+fmtDate(s.date)+' · '+s.time+' · '+s.venue+'</p>'+(s.notes?'<p style="margin-top:5px;font-size:.8rem">📌 '+s.notes+'</p>':'')+'</div>'
