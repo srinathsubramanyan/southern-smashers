@@ -412,6 +412,7 @@ nav{background:var(--nav-bg);border-bottom:2px solid var(--nav-border);padding:0
     </div>
     <div class="frow"><label>Venue</label><input type="text" id="f-venue" placeholder="e.g. Leisure Centre Court 2"></div>
     <div class="frow"><label>Max Players</label><input type="number" id="f-max" value="12" min="2" max="40"></div>
+    <div class="frow"><label>Court Cost (A$, optional)</label><input type="number" id="f-cost" min="0" step="0.50" placeholder="e.g. 30.00"></div>
     <div class="frow"><label>Notes (optional)</label><textarea id="f-notes" placeholder="e.g. Bring extra shuttles"></textarea></div>
     <div class="frow"><label style="display:flex;align-items:center;gap:8px;cursor:pointer;text-transform:none;letter-spacing:normal"><input type="checkbox" id="f-recurring" onchange="toggleRecurringRow()" style="width:auto;margin:0"> Repeat weekly</label></div>
     <div class="frow" id="recurring-row" style="display:none"><label>Number of weeks (including this one)</label><input type="number" id="f-weeks" value="4" min="2" max="26"></div>
@@ -1207,6 +1208,7 @@ function openNewSession(){
   document.getElementById('f-venue').value='';
   document.getElementById('f-notes').value='';
   document.getElementById('f-max').value='12';
+  document.getElementById('f-cost').value='';
   document.getElementById('f-recurring').checked=false;
   document.getElementById('f-weeks').value='4';
   document.getElementById('recurring-row').style.display='none';
@@ -1223,6 +1225,7 @@ async function createSession(){
   const venue=document.getElementById('f-venue').value.trim()||'TBC';
   const maxPlayers=parseInt(document.getElementById('f-max').value)||12;
   const notes=document.getElementById('f-notes').value.trim();
+  const cost=parseFloat(document.getElementById('f-cost').value)||0;
   const isRecurring=document.getElementById('f-recurring').checked;
   const weeks=isRecurring?Math.max(2,Math.min(26,parseInt(document.getElementById('f-weeks').value)||4)):1;
 
@@ -1241,6 +1244,13 @@ async function createSession(){
     rows.forEach(r=>{
       S.sessions.push({...r, maxPlayers:r.max_players, players:[]});
     });
+    // Court cost is a Finance-only figure — same amount applied to every
+    // recurring occurrence, never shown on the RSVP page, editable later
+    // from Finance → Session Court Costs.
+    if(cost>0){
+      await Promise.all(rows.map(r=>dbSetSessionCost(r.id, cost)));
+      rows.forEach(r=>{ S.sessionCosts[r.id]=cost; });
+    }
     closeModal('m-session'); renderSessions();
     showToast(weeks>1 ? weeks+' sessions created ✅' : 'Session created ✅');
   }catch(e){showToast('Error creating session'+(weeks>1?'s':''));}
