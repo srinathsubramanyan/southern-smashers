@@ -471,7 +471,7 @@ nav{background:var(--nav-bg);border-bottom:2px solid var(--nav-border);padding:0
         <option value="casual">Casual — A$10 per session</option>
       </select>
     </div>
-    <div id="m-fee-row" class="frow"><label>Quarterly Fee (A$)</label><input type="number" id="m-fee" value="60" min="0" step="5"></div>
+    <div id="m-fee-row" class="frow"><label id="m-fee-label">Quarterly Fee (A$)</label><input type="number" id="m-fee" value="60" min="0" step="5"></div>
     <div class="fgrid" id="m-dates-row">
       <div class="frow"><label>Start Date</label><input type="date" id="m-start"></div>
       <div class="frow"><label>End Date (leave blank if current)</label><input type="date" id="m-end"></div>
@@ -1088,9 +1088,14 @@ function casualSessionsAttended(memberId){
   return S.sessions.filter(s=>s.players.find(p=>p.id===memberId&&p.status==='going')).length;
 }
 
-// Running balance for a casual member (credit - cost used)
+// Running balance for a casual member (credit + one-off adjustment - cost used).
+// The per-session rate is ALWAYS the club default — a manual adjustment nets
+// against the balance directly, it never changes what future sessions cost,
+// and it's tracked separately from casualCreditPaid so it never reads as "paid".
 function casualBalance(memberId){
-  return casualCreditPaid(memberId) - casualSessionsAttended(memberId)*CASUAL_FEE;
+  const m = S.members.find(x=>x.id===memberId);
+  const adjustment = (m && m.fee) || 0;
+  return casualCreditPaid(memberId) + adjustment - casualSessionsAttended(memberId)*CASUAL_FEE;
 }
 
 // Sessions attended this quarter only
@@ -1424,14 +1429,14 @@ async function submitRSVP(sid){
 
 // ── MEMBERS ───────────────────────────────────────────────────────────────
 function toggleFeeRow(){document.getElementById('m-fee-row').style.display=document.getElementById('m-type').value==='permanent'?'block':'none';}
-function openAddMember(){
+function openAddMember(defaultType){
   document.getElementById('m-name').value='';
-  document.getElementById('m-type').value='permanent';
+  document.getElementById('m-type').value=defaultType||'permanent';
   document.getElementById('m-fee').value='60';
   document.getElementById('m-start').value=new Date().toISOString().split('T')[0];
   document.getElementById('m-end').value='';
-  document.getElementById('m-fee-row').style.display='block';
   document.getElementById('m-dates-row').style.display='';
+  toggleFeeRow();
   openModal('m-member');
 }
 async function addMember(){
@@ -1523,6 +1528,9 @@ function _buildCasualRows(casualList, q) {
     return '<tr>'
       + '<td><strong>' + c.name + '</strong><div style="font-size:.72rem;color:var(--muted)">' + qInfo + '</div></td>'
       + '<td style="font-size:.83rem;color:var(--accent)">A$' + c.qCost.toFixed(2) + '<div style="font-size:.7rem;color:var(--muted)">' + c.allSessions + ' sessions all-time</div></td>'
+      + '<td><div style="display:flex;align-items:center;gap:5px"><span style="font-size:.78rem;color:var(--muted)">A$</span>'
+      + '<input class="inline-num" type="number" step="0.50" value="' + (c.adjustment!==0?c.adjustment:'') + '" placeholder="0.00" onchange="doSetCasualAdjustment(' + c.id + ',parseFloat(this.value)||0)"></div>'
+      + '<div style="font-size:.7rem;color:var(--muted)">one-off, not counted as paid</div></td>'
       + '<td style="font-size:.83rem">A$' + c.allCredits.toFixed(2) + '<div style="font-size:.7rem;color:var(--muted)">all-time credit</div></td>'
       + '<td>' + balLabel + '</td>'
       + '<td style="display:flex;gap:5px;flex-wrap:wrap">'
@@ -1576,11 +1584,12 @@ function renderFinance(){
     var allSessions   = casualSessionsAttended(m.id);
     var allCredits    = casualCreditPaid(m.id);
     var balance       = casualBalance(m.id);
+    var adjustment    = m.fee || 0;
     var qCost         = qSessions * CASUAL_FEE;
     var qSessionDates = sessionsInQ(q)
       .filter(function(s){ return s.players.find(function(p){ return p.id===m.id && p.status==='going'; }); })
       .map(function(s){ return s.date; });
-    return {id:m.id, name:m.name, isGuest:false, qSessions:qSessions, qCost:qCost,
+    return {id:m.id, name:m.name, isGuest:false, qSessions:qSessions, qCost:qCost, adjustment:adjustment,
             qSessionDates:qSessionDates, allSessions:allSessions, allCredits:allCredits, balance:balance};
   });
 
@@ -1658,11 +1667,11 @@ function renderFinance(){
     + '<div class="fin-card">'
     +   '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:13px;flex-wrap:wrap;gap:8px">'
     +     '<h3 style="margin:0">🎟️ Casual Members · A$'+CASUAL_FEE.toFixed(2)+'/session</h3>'
-    +     '<button class="btn btn-ghost btn-sm" onclick="openAddMember()">＋ Add Casual</button>'
+    +     '<button class="btn btn-ghost btn-sm" onclick="openAddMember(\'casual\')">＋ Add Casual</button>'
     +   '</div>'
     +   (casualList.length
         ? '<div style="overflow-x:auto"><table class="tbl">'
-          +   '<thead><tr><th>Name</th><th>Q Cost</th><th>Total Credit</th><th>Balance</th><th></th></tr></thead>'
+          +   '<thead><tr><th>Name</th><th>Q Cost</th><th>Adjustment</th><th>Total Credit</th><th>Balance</th><th></th></tr></thead>'
           +   '<tbody>' + casualRows + '</tbody>'
           + '</table></div>'
           + '<div style="margin-top:9px;font-size:.75rem;color:var(--muted)">'
@@ -2321,6 +2330,21 @@ async function markGuestPaid(guestId, quarter, amount) {
   } finally {
     setLoading(false);
   }
+}
+
+async function doSetCasualAdjustment(memberId, amount){
+  setLoading(true);
+  try{
+    await sb('members?id=eq.'+memberId, 'PATCH', {fee: amount||0});
+    const m=S.members.find(x=>x.id===memberId);
+    if(m) m.fee = amount||0;
+    renderFinance();
+    showToast(amount ? 'Balance adjusted by A$'+amount.toFixed(2) : 'Adjustment cleared');
+  }catch(e){
+    showToast('Error saving adjustment');
+    renderFinance();
+  }
+  setLoading(false);
 }
 
 function openAddCredit(memberId, memberName) {
