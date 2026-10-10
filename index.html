@@ -316,6 +316,18 @@ nav{background:var(--nav-bg);border-bottom:2px solid var(--nav-border);padding:0
 @keyframes winnerPulse{from{box-shadow:0 2px 8px rgba(0,0,0,.1);}to{box-shadow:0 4px 20px rgba(0,0,0,.2);}}
 /* ── SCORE INPUTS ────────────────────────────────────────── */
 .score-input:focus{border-color:var(--accent);box-shadow:0 0 8px rgba(0,0,0,.08);}
+
+/* ── MERCH ───────────────────────────────────────────────── */
+.merch-img{display:block;width:100%;max-height:340px;object-fit:contain;border-radius:10px;background:#fff;border:1px solid var(--border);}
+.merch-img-fail{padding:26px 14px;text-align:center;color:var(--muted);font-size:.82rem;border:1.5px dashed var(--border);border-radius:10px;}
+.merch-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;}
+.merch-wrap .tbl th,.merch-wrap .tbl td{padding-left:6px;padding-right:6px;}
+.merch-admin .tbl{min-width:640px;}
+.merch-admin .tbl th,.merch-admin .tbl td{white-space:nowrap;}
+.tbl tr.merch-hl td{background:rgba(212,160,23,.16)!important;}
+.merch-tag{margin-left:6px;font-size:.66rem;background:var(--border);color:var(--muted);padding:1px 6px;border-radius:8px;}
+.merch-new{margin-left:6px;font-size:.66rem;color:var(--accent);font-weight:700;}
+.merch-stats{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:14px;}
 </style>
 </head>
 <body>
@@ -343,6 +355,12 @@ nav{background:var(--nav-bg);border-bottom:2px solid var(--nav-border);padding:0
     </button>
     <button class="nav-tab vll-tab" data-view="tournament" onclick="showView('tournament',this)" title="Vera Level League">
       <span class="tab-icon">🏆</span><span class="tab-label">VLL</span>
+    </button>
+    <button class="nav-tab" data-view="merch" onclick="showView('merch',this)" title="Merchandise">
+      <span class="tab-icon">🎽</span><span class="tab-label">Merch</span>
+    </button>
+    <button class="nav-tab" data-view="merchadmin" onclick="showView('merchadmin',this)" title="Merch Orders (Admin)">
+      <span class="tab-icon">📋</span><span class="tab-label">Orders</span>
     </button>
   </div>
   </div>
@@ -376,6 +394,16 @@ nav{background:var(--nav-bg);border-bottom:2px solid var(--nav-border);padding:0
 
 <div id="view-tournament" class="view">
   <div id="tournament-content"></div>
+</div>
+
+<div id="view-merch" class="view">
+  <div id="merch-form"></div>
+  <div id="merch-list"></div>
+</div>
+
+<div id="view-merchadmin" class="view">
+  <div class="page-hdr"><div><h1>📋 Merch Orders</h1><p>Admin only — review, edit, delete and export for the vendor</p></div></div>
+  <div id="merchadmin-content"></div>
 </div>
 
 
@@ -576,6 +604,28 @@ nav{background:var(--nav-bg);border-bottom:2px solid var(--nav-border);padding:0
     <div class="modal-btns">
       <button class="btn btn-ghost" onclick="closeModal('m-sale')">Cancel</button>
       <button class="btn btn-lime" onclick="saveSale()">Record Sale</button>
+    </div>
+  </div>
+</div>
+
+<!-- MERCH EDIT MODAL -->
+<div class="overlay" id="m-merch">
+  <div class="modal">
+    <h3>✏️ Edit Merch Order</h3>
+    <input type="hidden" id="me-id">
+    <div class="frow"><label>Ordered by</label><input type="text" id="me-orderer"></div>
+    <div class="fgrid">
+      <div class="frow"><label>Name on T-shirt</label><input type="text" id="me-name" maxlength="20"></div>
+      <div class="frow"><label>Number on back</label><input type="text" id="me-num" maxlength="3" inputmode="numeric"></div>
+    </div>
+    <div class="fgrid">
+      <div class="frow"><label>Type</label><select id="me-type"></select></div>
+      <div class="frow"><label>Size</label><select id="me-size"></select></div>
+    </div>
+    <div class="frow"><label>Quantity</label><select id="me-qty"></select></div>
+    <div class="modal-btns">
+      <button class="btn btn-ghost" onclick="closeModal('m-merch')">Cancel</button>
+      <button class="btn btn-lime" onclick="saveMerchEdit()">Save Changes</button>
     </div>
   </div>
 </div>
@@ -1122,6 +1172,8 @@ function showView(name,btn){
   if(name==='finance')     requirePin('finance', renderFinance);
   if(name==='shuttles')    requirePin('finance', renderShuttles);
   if(name==='tournament')  renderTournament();
+  if(name==='merch')       openMerch();
+  if(name==='merchadmin')  openMerchAdmin();
 }
 
 // ── SESSIONS ──────────────────────────────────────────────────────────────
@@ -2420,8 +2472,8 @@ function showToast(msg){
 
 // ── ROLE / TAB VISIBILITY ─────────────────────────────────────────────────
 const ROLES = {
-  player: ['rsvp','tournament'],
-  admin:  ['rsvp','sessions','finance','shuttles','tournament'],
+  player: ['rsvp','tournament','merch'],
+  admin:  ['rsvp','sessions','finance','shuttles','tournament','merch','merchadmin'],
 };
 
 function getRole() {
@@ -2462,6 +2514,288 @@ function applyRole() {
   const first = allowed[0];
   const firstBtn = document.querySelector('.nav-tab[data-view="'+first+'"]');
   showView(first, firstBtn);
+}
+
+
+
+// ============================================================
+// MERCHANDISE
+// ============================================================
+const MERCH_TYPES = ['Polo','Round Neck'];
+const MERCH_SIZES = ['XXXS (Kids)','XXS (Kids)','XS (Kids)','S','M','L','XL','XXL-C','XXL'];
+const MERCH_QTYS  = [1,2,3,4,5];
+// Image of the T-shirt: commit a file named tshirt.jpg next to index.html in GitHub,
+// or set merchImage in config.js (a file name or full URL).
+const MERCH_IMG = CFG.merchImage || 'tshirt.jpg';
+let _merchLastId = null;
+S.merchOrders = []; S.merchError = false;
+
+function escH(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
+function merchOpts(list,sel){return list.map(function(v){return '<option value="'+escH(v)+'"'+(String(v)===String(sel)?' selected':'')+'>'+escH(v)+'</option>';}).join('');}
+function merchSizeIdx(s){var i=MERCH_SIZES.indexOf(s);return i<0?99:i;}
+function merchImgFail(img){
+  var d=document.createElement('div');d.className='merch-img-fail';
+  d.textContent='T-shirt image not found yet — add '+MERCH_IMG+' to the app folder in GitHub.';
+  if(img.parentNode)img.parentNode.replaceChild(d,img);
+}
+async function loadMerch(){
+  try{ S.merchOrders = (await sb('merch_orders?order=id')) || []; S.merchError=false; }
+  catch(e){ S.merchError=true; }
+}
+function merchOrdererLabel(o){
+  var s=escH(o.orderer_name);
+  if(o.orderer_type==='guest'){
+    var inv=o.invited_by_member_id?memberNameById(o.invited_by_member_id):null;
+    s+='<span class="merch-tag">guest'+(inv?' · via '+escH(inv):'')+'</span>';
+  }
+  return s;
+}
+function merchErrorBox(){
+  return '<div class="rsvp-card" style="border-color:var(--red)"><h3 style="color:var(--red)">Merch orders unavailable</h3>'
+    +'<p style="font-size:.84rem;color:var(--muted)">Could not load orders. If this is the first time, run section 17 of the Supabase setup SQL (merch_orders table), then reload.</p></div>';
+}
+
+// ── MEMBER-FACING PAGE ────────────────────────────────────────────────────
+async function openMerch(){
+  renderMerchForm();
+  document.getElementById('merch-list').innerHTML='<div class="rsvp-card"><p style="font-size:.84rem;color:var(--muted)">Loading orders…</p></div>';
+  await loadMerch();
+  renderMerchList();
+}
+
+function renderMerchForm(){
+  var el=document.getElementById('merch-form');
+  var perm=S.members.filter(function(m){return m.type==='permanent';});
+  var cas =S.members.filter(function(m){return m.type!=='permanent';});
+  var grp=function(label,arr){return arr.length?'<optgroup label="'+label+'">'+arr.map(function(m){return '<option value="'+m.id+'">'+escH(m.name)+'</option>';}).join('')+'</optgroup>':'';};
+  var allOpts=S.members.map(function(m){return '<option value="'+m.id+'">'+escH(m.name)+' ('+(m.type==='permanent'?'Permanent':'Casual')+')</option>';}).join('');
+  var imgUrl=escH(MERCH_IMG);
+  el.innerHTML=
+    '<div class="rsvp-hero"><h1>🎽 Club Merchandise</h1><p>Order your club T-shirt — pick your details below and submit.</p></div>'
+    +'<div class="rsvp-card"><h3 style="font-family:Bebas Neue,cursive;color:var(--accent);letter-spacing:.05em;font-size:1.1rem">The T-shirt</h3>'
+    +'<a href="'+imgUrl+'" target="_blank" rel="noopener"><img class="merch-img" src="'+imgUrl+'" alt="Club T-shirt" onerror="merchImgFail(this)"></a>'
+    +'<div style="margin-top:9px;font-size:.8rem"><a href="'+imgUrl+'" target="_blank" rel="noopener" style="color:var(--accent)">🔗 Open full-size image</a></div></div>'
+    +'<div class="rsvp-card"><h3 style="font-family:Bebas Neue,cursive;color:var(--accent);letter-spacing:.05em;font-size:1.1rem">Place an order</h3>'
+    +'<div class="frow"><label>Your name</label><select id="mo-who" onchange="toggleMerchGuest();renderMerchList()"><option value="">— Select your name —</option>'
+      +grp('Members',perm)+grp('Casual',cas)+'<option value="guest">I\'m a guest</option></select></div>'
+    +'<div class="frow" id="mo-guest-row" style="display:none">'
+      +'<label>Guest name</label><input type="text" id="mo-guest" placeholder="Enter your name" maxlength="40">'
+      +'<label style="margin-top:9px">Invited by</label><select id="mo-invited"><option value="">— Who invited you? —</option>'+allOpts+'</select></div>'
+    +'<div class="fgrid">'
+      +'<div class="frow"><label>Name on T-shirt</label><input type="text" id="mo-name" maxlength="20" placeholder="e.g. SRINATH"></div>'
+      +'<div class="frow"><label>Number on back</label><input type="text" id="mo-num" maxlength="3" inputmode="numeric" placeholder="e.g. 7"></div>'
+    +'</div>'
+    +'<div class="fgrid">'
+      +'<div class="frow"><label>Type</label><select id="mo-type">'+merchOpts(MERCH_TYPES)+'</select></div>'
+      +'<div class="frow"><label>Size</label><select id="mo-size"><option value="">— Size —</option>'+merchOpts(MERCH_SIZES)+'</select></div>'
+    +'</div>'
+    +'<div class="frow"><label>Quantity</label><select id="mo-qty">'+merchOpts(MERCH_QTYS)+'</select></div>'
+    +'<button class="btn btn-lime" style="width:100%;justify-content:center" onclick="submitMerch()">Submit Order</button></div>';
+}
+function toggleMerchGuest(){
+  document.getElementById('mo-guest-row').style.display=document.getElementById('mo-who').value==='guest'?'block':'none';
+}
+
+async function submitMerch(){
+  var who=document.getElementById('mo-who').value;
+  if(!who){showToast('Select your name');return;}
+  var member_id=null, orderer_name, orderer_type, invited=null;
+  if(who==='guest'){
+    orderer_name=document.getElementById('mo-guest').value.trim();
+    if(!orderer_name){showToast('Enter your name');return;}
+    var inv=document.getElementById('mo-invited').value;
+    if(!inv){showToast('Select who invited you');return;}
+    invited=parseInt(inv,10); orderer_type='guest';
+  }else{
+    var m=S.members.find(function(x){return String(x.id)===who;});
+    if(!m){showToast('Select your name');return;}
+    member_id=m.id; orderer_name=m.name; orderer_type=m.type==='permanent'?'permanent':'casual';
+  }
+  var shirt_name=document.getElementById('mo-name').value.trim();
+  var shirt_number=document.getElementById('mo-num').value.trim();
+  var size=document.getElementById('mo-size').value;
+  if(!shirt_name){showToast('Enter the name for the T-shirt');return;}
+  if(!/^\d{1,3}$/.test(shirt_number)){showToast('Enter a number for the back (digits only)');return;}
+  if(!size){showToast('Select a size');return;}
+  var payload={
+    member_id:member_id, orderer_name:orderer_name, orderer_type:orderer_type, invited_by_member_id:invited,
+    shirt_name:shirt_name, shirt_number:shirt_number,
+    shirt_type:document.getElementById('mo-type').value, size:size,
+    quantity:parseInt(document.getElementById('mo-qty').value,10)||1
+  };
+  setLoading(true);
+  try{
+    var rows=await sb('merch_orders','POST',payload);
+    _merchLastId=rows&&rows[0]?rows[0].id:null;
+    await loadMerch();
+    document.getElementById('mo-name').value='';
+    document.getElementById('mo-num').value='';
+    document.getElementById('mo-size').value='';
+    document.getElementById('mo-qty').value='1';
+    renderMerchList();
+    showToast('Order saved for '+orderer_name+' ✅');
+    var l=document.getElementById('merch-list'); if(l&&l.scrollIntoView) l.scrollIntoView({behavior:'smooth',block:'start'});
+  }catch(e){showToast('Error saving order');}
+  setLoading(false);
+}
+
+function renderMerchList(){
+  var el=document.getElementById('merch-list'); if(!el)return;
+  if(S.merchError){el.innerHTML=merchErrorBox();return;}
+  var whoEl=document.getElementById('mo-who'); var who=whoEl?whoEl.value:'';
+  var orders=S.merchOrders.slice();
+  var shirts=orders.reduce(function(a,o){return a+(o.quantity||0);},0);
+  var rows=orders.map(function(o){
+    var mine=(_merchLastId!==null&&o.id===_merchLastId)||(who&&who!=='guest'&&String(o.member_id)===who);
+    var isNew=(_merchLastId!==null&&o.id===_merchLastId);
+    return '<tr'+(mine?' class="merch-hl"':'')+'><td>'+merchOrdererLabel(o)+(isNew?'<span class="merch-new">✓ just saved</span>':'')+'</td>'
+      +'<td><strong>'+escH(o.shirt_name)+'</strong> <span style="color:var(--muted)">#'+escH(o.shirt_number)+'</span></td>'
+      +'<td>'+escH(o.shirt_type)+'<br><span style="color:var(--muted)">'+escH(o.size)+'</span></td><td>'+o.quantity+'</td></tr>';
+  }).join('');
+  el.innerHTML='<div class="rsvp-card"><h3 style="font-family:Bebas Neue,cursive;color:var(--accent);letter-spacing:.05em;font-size:1.1rem">Club orders · '+orders.length+' order'+(orders.length===1?'':'s')+' · '+shirts+' shirt'+(shirts===1?'':'s')+'</h3>'
+    +(orders.length
+      ?'<p style="font-size:.78rem;color:var(--muted);margin-bottom:10px">Highlighted rows are yours — check they look right. Need a change? Ask an admin.</p>'
+        +'<div class="merch-wrap"><table class="tbl"><thead><tr><th>Ordered by</th><th>Shirt</th><th>Type / Size</th><th>Qty</th></tr></thead><tbody>'+rows+'</tbody></table></div>'
+      :'<p style="font-size:.84rem;color:var(--muted)">No orders yet — be the first!</p>')
+    +'</div>';
+}
+
+// ── ADMIN PAGE ────────────────────────────────────────────────────────────
+async function openMerchAdmin(){
+  if(getRole()!=='admin'){
+    document.getElementById('merchadmin-content').innerHTML='<div class="empty"><div class="ico">🔒</div><h3>Admin only</h3></div>';
+    return;
+  }
+  document.getElementById('merchadmin-content').innerHTML='<div class="rsvp-card"><p style="font-size:.84rem;color:var(--muted)">Loading orders…</p></div>';
+  await loadMerch();
+  renderMerchAdmin();
+}
+
+function merchSorted(){
+  return S.merchOrders.slice().sort(function(a,b){
+    return MERCH_TYPES.indexOf(a.shirt_type)-MERCH_TYPES.indexOf(b.shirt_type)
+      || merchSizeIdx(a.size)-merchSizeIdx(b.size)
+      || String(a.shirt_name).localeCompare(String(b.shirt_name));
+  });
+}
+function merchSummary(){
+  var m={};
+  S.merchOrders.forEach(function(o){var k=o.shirt_type+'||'+o.size; m[k]=(m[k]||0)+(o.quantity||0);});
+  return Object.keys(m).map(function(k){var p=k.split('||');return {type:p[0],size:p[1],qty:m[k]};})
+    .sort(function(a,b){return MERCH_TYPES.indexOf(a.type)-MERCH_TYPES.indexOf(b.type)||merchSizeIdx(a.size)-merchSizeIdx(b.size);});
+}
+
+function renderMerchAdmin(){
+  var el=document.getElementById('merchadmin-content'); if(!el)return;
+  if(S.merchError){el.innerHTML=merchErrorBox();return;}
+  var orders=S.merchOrders.slice().reverse(); // newest first
+  var shirts=orders.reduce(function(a,o){return a+(o.quantity||0);},0);
+  var sum=merchSummary();
+  var sumHtml=sum.length?sum.map(function(s){return '<span class="chip going" style="margin:0 6px 6px 0"><strong>'+s.qty+'</strong>&nbsp;× '+escH(s.type)+' '+escH(s.size)+'</span>';}).join(''):'<span style="color:var(--muted);font-size:.84rem">No orders yet</span>';
+  var rows=orders.map(function(o){
+    var placed=o.created_at?new Date(o.created_at).toLocaleDateString('en-AU',{day:'numeric',month:'short'}):'';
+    return '<tr><td>'+merchOrdererLabel(o)+'</td>'
+      +'<td><strong>'+escH(o.shirt_name)+'</strong></td><td>'+escH(o.shirt_number)+'</td>'
+      +'<td>'+escH(o.shirt_type)+'</td><td>'+escH(o.size)+'</td><td>'+o.quantity+'</td>'
+      +'<td style="color:var(--muted)">'+placed+'</td>'
+      +'<td><button class="btn btn-ghost btn-sm" onclick="editMerch('+o.id+')">Edit</button> '
+      +'<button class="btn btn-red btn-sm" onclick="deleteMerch('+o.id+')">Delete</button></td></tr>';
+  }).join('');
+  el.innerHTML=
+    '<div class="merch-stats"><div class="card" style="padding:12px;margin:0"><div class="stat-num">'+orders.length+'</div><div class="sec-lbl" style="margin:3px 0 0">Orders</div></div>'
+    +'<div class="card" style="padding:12px;margin:0"><div class="stat-num">'+shirts+'</div><div class="sec-lbl" style="margin:3px 0 0">Shirts</div></div></div>'
+    +'<div class="rsvp-card"><h3 style="font-family:Bebas Neue,cursive;color:var(--accent);letter-spacing:.05em;font-size:1.1rem">Totals by type &amp; size</h3>'+sumHtml+'</div>'
+    +'<div class="rsvp-card"><div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">'
+      +'<button class="btn btn-lime" onclick="exportMerch(false)">⬇ Export for vendor (.xlsx)</button>'
+      +'<button class="btn btn-ghost" onclick="exportMerch(true)">⬇ Export with “Ordered by”</button>'
+      +'<button class="btn btn-ghost" onclick="openMerchAdmin()">↻ Refresh</button></div>'
+    +(orders.length
+      ?'<div class="merch-wrap merch-admin"><table class="tbl"><thead><tr><th>Ordered by</th><th>Name on shirt</th><th>No.</th><th>Type</th><th>Size</th><th>Qty</th><th>Placed</th><th></th></tr></thead><tbody>'+rows+'</tbody></table></div>'
+      :'<p style="font-size:.84rem;color:var(--muted)">No orders yet.</p>')
+    +'</div>';
+}
+
+function editMerch(id){
+  var o=S.merchOrders.find(function(x){return x.id===id;}); if(!o)return;
+  document.getElementById('me-id').value=o.id;
+  document.getElementById('me-orderer').value=o.orderer_name;
+  document.getElementById('me-name').value=o.shirt_name;
+  document.getElementById('me-num').value=o.shirt_number;
+  document.getElementById('me-type').innerHTML=merchOpts(MERCH_TYPES,o.shirt_type);
+  document.getElementById('me-size').innerHTML=merchOpts(MERCH_SIZES,o.size);
+  document.getElementById('me-qty').innerHTML=merchOpts(MERCH_QTYS,o.quantity);
+  openModal('m-merch');
+}
+async function saveMerchEdit(){
+  var id=parseInt(document.getElementById('me-id').value,10);
+  var orderer=document.getElementById('me-orderer').value.trim();
+  var name=document.getElementById('me-name').value.trim();
+  var num=document.getElementById('me-num').value.trim();
+  if(!orderer||!name){showToast('Ordered by and shirt name are required');return;}
+  if(!/^\d{1,3}$/.test(num)){showToast('Number must be digits only');return;}
+  var payload={orderer_name:orderer,shirt_name:name,shirt_number:num,
+    shirt_type:document.getElementById('me-type').value,size:document.getElementById('me-size').value,
+    quantity:parseInt(document.getElementById('me-qty').value,10)||1};
+  setLoading(true);
+  try{
+    await sb('merch_orders?id=eq.'+id,'PATCH',payload);
+    var o=S.merchOrders.find(function(x){return x.id===id;}); if(o)Object.assign(o,payload);
+    closeModal('m-merch'); renderMerchAdmin(); showToast('Order updated ✓');
+  }catch(e){showToast('Error saving changes');}
+  setLoading(false);
+}
+function deleteMerch(id){
+  var o=S.merchOrders.find(function(x){return x.id===id;}); if(!o)return;
+  showConfirm('Delete order?',o.orderer_name+' — '+o.quantity+' × '+o.shirt_type+' '+o.size+' ('+o.shirt_name+' #'+o.shirt_number+')',async function(){
+    setLoading(true);
+    try{
+      await sb('merch_orders?id=eq.'+id,'DELETE');
+      S.merchOrders=S.merchOrders.filter(function(x){return x.id!==id;});
+      renderMerchAdmin(); showToast('Order deleted');
+    }catch(e){showToast('Error deleting order');}
+    setLoading(false);
+  });
+}
+
+// ── EXCEL EXPORT (SheetJS, loaded on demand) ──────────────────────────────
+function loadXLSX(){
+  return new Promise(function(res,rej){
+    if(window.XLSX)return res();
+    var s=document.createElement('script');
+    s.src='https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+    s.onload=function(){res();}; s.onerror=function(){rej(new Error('xlsx load failed'));};
+    document.head.appendChild(s);
+  });
+}
+async function exportMerch(withOrderer){
+  if(!S.merchOrders.length){showToast('No orders to export');return;}
+  setLoading(true);
+  try{
+    await loadXLSX();
+    var list=merchSorted();
+    var head=['#','Name on Shirt','Number','Type','Size','Qty'];
+    if(withOrderer)head.push('Ordered By');
+    var aoa=[head];
+    list.forEach(function(o,i){
+      var r=[i+1,o.shirt_name,String(o.shirt_number),o.shirt_type,o.size,o.quantity];
+      if(withOrderer)r.push(o.orderer_name+(o.orderer_type==='guest'?' (guest)':''));
+      aoa.push(r);
+    });
+    var ws=XLSX.utils.aoa_to_sheet(aoa);
+    ws['!cols']=[{wch:5},{wch:22},{wch:8},{wch:12},{wch:13},{wch:6}].concat(withOrderer?[{wch:24}]:[]);
+    var sum=merchSummary(); var total=0;
+    var sa=[['Type','Size','Total Qty']];
+    sum.forEach(function(s){sa.push([s.type,s.size,s.qty]);total+=s.qty;});
+    sa.push(['','TOTAL',total]);
+    var ws2=XLSX.utils.aoa_to_sheet(sa); ws2['!cols']=[{wch:12},{wch:13},{wch:10}];
+    var wb=XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb,ws,'Order List');
+    XLSX.utils.book_append_sheet(wb,ws2,'Size Summary');
+    var club=(CFG.clubName||'Club').replace(/[^A-Za-z0-9]+/g,'-');
+    XLSX.writeFile(wb,club+'-merch-orders-'+new Date().toISOString().slice(0,10)+'.xlsx');
+    showToast('Excel file downloaded ✓');
+  }catch(e){showToast('Export failed — check connection');}
+  setLoading(false);
 }
 
 
