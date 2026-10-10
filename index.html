@@ -2706,8 +2706,7 @@ function renderMerchAdmin(){
     +'<div class="card" style="padding:12px;margin:0"><div class="stat-num">'+shirts+'</div><div class="sec-lbl" style="margin:3px 0 0">Shirts</div></div></div>'
     +'<div class="rsvp-card"><h3 style="font-family:Bebas Neue,cursive;color:var(--accent);letter-spacing:.05em;font-size:1.1rem">Totals by type &amp; size</h3>'+sumHtml+'</div>'
     +'<div class="rsvp-card"><div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">'
-      +'<button class="btn btn-lime" onclick="exportMerch(false)">⬇ Export for vendor (.xlsx)</button>'
-      +'<button class="btn btn-ghost" onclick="exportMerch(true)">⬇ Export with “Ordered by”</button>'
+      +'<button class="btn btn-lime" onclick="exportMerch()">⬇ Export to Excel (.xlsx)</button>'
       +'<button class="btn btn-ghost" onclick="openMerchAdmin()">↻ Refresh</button></div>'
     +(orders.length
       ?'<div class="merch-wrap merch-admin"><table class="tbl"><thead><tr><th>Ordered by</th><th>Name on shirt</th><th>No.</th><th>Type</th><th>Size</th><th>Qty</th><th>Placed</th><th></th></tr></thead><tbody>'+rows+'</tbody></table></div>'
@@ -2767,22 +2766,22 @@ function loadXLSX(){
     document.head.appendChild(s);
   });
 }
-async function exportMerch(withOrderer){
+async function exportMerch(){
   if(!S.merchOrders.length){showToast('No orders to export');return;}
   setLoading(true);
   try{
     await loadXLSX();
     var list=merchSorted();
     var head=['#','Name on Shirt','Number','Type','Size','Qty'];
-    if(withOrderer)head.push('Ordered By');
+    head.push('Ordered By');
     var aoa=[head];
     list.forEach(function(o,i){
       var r=[i+1,o.shirt_name,String(o.shirt_number),o.shirt_type,o.size,o.quantity];
-      if(withOrderer)r.push(o.orderer_name+(o.orderer_type==='guest'?' (guest)':''));
+      r.push(o.orderer_name+(o.orderer_type==='guest'?' (guest)':''));
       aoa.push(r);
     });
     var ws=XLSX.utils.aoa_to_sheet(aoa);
-    ws['!cols']=[{wch:5},{wch:22},{wch:8},{wch:12},{wch:13},{wch:6}].concat(withOrderer?[{wch:24}]:[]);
+    ws['!cols']=[{wch:5},{wch:22},{wch:8},{wch:12},{wch:13},{wch:6},{wch:24}];
     var sum=merchSummary(); var total=0;
     var sa=[['Type','Size','Total Qty']];
     sum.forEach(function(s){sa.push([s.type,s.size,s.qty]);total+=s.qty;});
