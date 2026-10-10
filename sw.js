@@ -1,5 +1,5 @@
 // ShuttleUp Service Worker — enables offline use and PWA install
-const CACHE = 'shuttleup-v4';
+const CACHE = 'shuttleup-v5';
 const ASSETS = [
   './index.html',
   './config.js',
