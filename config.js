@@ -9,6 +9,7 @@ window.APP_CONFIG = {
   // ── Identity ──────────────────────────────────────────────
   clubName:  'Southern Smashers',
   groupName: 'Saturday Group',       // shown under club name in nav
+  sponsorFacebook: 'https://www.facebook.com/share/19fo9CxCbx/?mibextid=wwXIfr',
 
   // ── Supabase credentials ───────────────────────────────────
   // Get these from: Supabase project → Settings → API
