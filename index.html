@@ -2594,8 +2594,8 @@ function renderMerchForm(){
       +'<label>Guest name</label><input type="text" id="mo-guest" placeholder="Enter your name" maxlength="40">'
       +'<label style="margin-top:9px">Invited by</label><select id="mo-invited"><option value="">— Who invited you? —</option>'+allOpts+'</select></div>'
     +'<div class="fgrid">'
-      +'<div class="frow"><label>Name on T-shirt</label><input type="text" id="mo-name" maxlength="20" placeholder="e.g. SRINATH"></div>'
-      +'<div class="frow"><label>Number on back</label><input type="text" id="mo-num" maxlength="3" inputmode="numeric" placeholder="e.g. 7"></div>'
+      +'<div class="frow"><label>Name on T-shirt</label><input type="text" id="mo-name" maxlength="20" placeholder="Blank = no name"></div>'
+      +'<div class="frow"><label>Number on back</label><input type="text" id="mo-num" maxlength="3" inputmode="numeric" placeholder="Blank = no number"></div>'
     +'</div>'
     +'<div class="fgrid">'
       +'<div class="frow"><label>Type</label><select id="mo-type">'+merchOpts(MERCH_TYPES)+'</select></div>'
@@ -2637,8 +2637,7 @@ async function submitMerch(){
   var shirt_name=document.getElementById('mo-name').value.trim();
   var shirt_number=document.getElementById('mo-num').value.trim();
   var size=document.getElementById('mo-size').value;
-  if(!shirt_name){showToast('Enter the name for the T-shirt');return;}
-  if(!/^\d{1,3}$/.test(shirt_number)){showToast('Enter a number for the back (digits only)');return;}
+  if(shirt_number&&!/^\d{1,3}$/.test(shirt_number)){showToast('Number must be digits only (or leave blank)');return;}
   if(!size){showToast('Select a size');return;}
   var payload={
     member_id:member_id, orderer_name:orderer_name, orderer_type:orderer_type, invited_by_member_id:invited,
@@ -2672,7 +2671,7 @@ function renderMerchList(){
     var mine=(_merchLastId!==null&&o.id===_merchLastId)||(who&&who!=='guest'&&String(o.member_id)===who);
     var isNew=(_merchLastId!==null&&o.id===_merchLastId);
     return '<tr'+(mine?' class="merch-hl"':'')+'><td>'+merchOrdererLabel(o)+(isNew?'<span class="merch-new">✓ just saved</span>':'')+'</td>'
-      +'<td><strong>'+escH(o.shirt_name)+'</strong> <span style="color:var(--muted)">#'+escH(o.shirt_number)+'</span></td>'
+      +'<td>'+((o.shirt_name||o.shirt_number)?(o.shirt_name?'<strong>'+escH(o.shirt_name)+'</strong> ':'')+(o.shirt_number?'<span style="color:var(--muted)">#'+escH(o.shirt_number)+'</span>':''):'<span style="color:var(--muted)">(blank)</span>')+'</td>'
       +'<td>'+escH(o.shirt_type)+'<br><span style="color:var(--muted)">'+escH(o.size)+'</span></td><td>'+o.quantity+'</td></tr>';
   }).join('');
   el.innerHTML='<div class="rsvp-card"><h3 style="font-family:Bebas Neue,cursive;color:var(--accent);letter-spacing:.05em;font-size:1.1rem">Club orders · '+orders.length+' order'+(orders.length===1?'':'s')+' · '+shirts+' shirt'+(shirts===1?'':'s')+'</h3>'
@@ -2753,8 +2752,8 @@ async function saveMerchEdit(){
   var orderer=document.getElementById('me-orderer').value.trim();
   var name=document.getElementById('me-name').value.trim();
   var num=document.getElementById('me-num').value.trim();
-  if(!orderer||!name){showToast('Ordered by and shirt name are required');return;}
-  if(!/^\d{1,3}$/.test(num)){showToast('Number must be digits only');return;}
+  if(!orderer){showToast('Ordered by is required');return;}
+  if(num&&!/^\d{1,3}$/.test(num)){showToast('Number must be digits only (or leave blank)');return;}
   var payload={orderer_name:orderer,shirt_name:name,shirt_number:num,
     shirt_type:document.getElementById('me-type').value,size:document.getElementById('me-size').value,
     quantity:parseInt(document.getElementById('me-qty').value,10)||1};
@@ -2768,7 +2767,7 @@ async function saveMerchEdit(){
 }
 function deleteMerch(id){
   var o=S.merchOrders.find(function(x){return x.id===id;}); if(!o)return;
-  showConfirm('Delete order?',o.orderer_name+' — '+o.quantity+' × '+o.shirt_type+' '+o.size+' ('+o.shirt_name+' #'+o.shirt_number+')',async function(){
+  showConfirm('Delete order?',o.orderer_name+' — '+o.quantity+' × '+o.shirt_type+' '+o.size+(o.shirt_name||o.shirt_number?' ('+(o.shirt_name||'')+(o.shirt_number?' #'+o.shirt_number:'')+')':''),async function(){
     setLoading(true);
     try{
       await sb('merch_orders?id=eq.'+id,'DELETE');
