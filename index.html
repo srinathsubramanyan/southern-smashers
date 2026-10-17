@@ -2868,6 +2868,12 @@ boot();
 
 // ── SERVICE WORKER (PWA offline) ─────────────────────────────
 if ('serviceWorker' in navigator) {
+  // When a new version takes over, reload once so the user sees it straight away
+  // (skipped on the very first install, when there was no previous version).
+  var _hadSW = !!navigator.serviceWorker.controller, _swReloaded = false;
+  navigator.serviceWorker.addEventListener('controllerchange', function() {
+    if (_hadSW && !_swReloaded) { _swReloaded = true; location.reload(); }
+  });
   window.addEventListener('load', function() {
     navigator.serviceWorker.register('sw.js').catch(function(e){ console.warn('SW failed', e); });
   });
