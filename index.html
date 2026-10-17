@@ -2522,7 +2522,18 @@ function applyRole() {
 // MERCHANDISE
 // ============================================================
 const MERCH_TYPES = ['Polo','Round Neck'];
-const MERCH_SIZES = ['XXXS (Kids)','XXS (Kids)','XS (Kids)','S','M','L','XL','XXL-C','XXL'];
+// Stored in the database WITHOUT the number (so old orders stay valid). Numbers are display/export only.
+const MERCH_SIZE_NUM = {'XXXL':'46','XXL':'44','XXL-C':'44-23-31.5','XL':'42','L':'40','M':'38','S':'36','XS (Kids)':'34','XXS (Kids)':'32','XXXS (Kids)':'30','8Yr':'28','7Yr':'26','6Yr':'24','5Yr':'22','1-4Yr':'20'};
+const MERCH_SIZES = ['XXXL','XXL','XXL-C','XL','L','M','S','XS (Kids)','XXS (Kids)','XXXS (Kids)','8Yr','7Yr','6Yr','5Yr','1-4Yr'];
+function merchSizeLabel(v){return MERCH_SIZE_NUM[v]?v+' ('+MERCH_SIZE_NUM[v]+')':v;}
+function merchSizeOpts(sel){return MERCH_SIZES.map(function(v){return '<option value="'+escH(v)+'"'+(v===sel?' selected':'')+'>'+escH(merchSizeLabel(v))+'</option>';}).join('');}
+
+// Sponsor — put sponsor-logo.png (or .jpg) next to index.html in GitHub, or set sponsorLogo in config.js.
+// Add the Facebook page address as sponsorFacebook in config.js (the link appears once it is set).
+const SPONSOR_NAME  = 'AJ Shutters N Blinds';
+const SPONSOR_PHONE = '0405 955 131';
+const SPONSOR_LOGO  = CFG.sponsorLogo || 'sponsor-logo.png';
+const SPONSOR_FB    = CFG.sponsorFacebook || '';
 const MERCH_QTYS  = [1,2,3,4,5];
 // Image of the T-shirt: commit a file named tshirt.jpg next to index.html in GitHub,
 // or set merchImage in config.js (a file name or full URL).
@@ -2575,6 +2586,7 @@ function renderMerchForm(){
     +'<div class="rsvp-card"><h3 style="font-family:Bebas Neue,cursive;color:var(--accent);letter-spacing:.05em;font-size:1.1rem">The T-shirt</h3>'
     +'<a href="'+imgUrl+'" target="_blank" rel="noopener"><img class="merch-img" src="'+imgUrl+'" alt="Club T-shirt" onerror="merchImgFail(this)"></a>'
     +'<div style="margin-top:9px;font-size:.8rem"><a href="'+imgUrl+'" target="_blank" rel="noopener" style="color:var(--accent)">🔗 Open full-size image</a></div></div>'
+    +merchSponsorCard()
     +'<div class="rsvp-card"><h3 style="font-family:Bebas Neue,cursive;color:var(--accent);letter-spacing:.05em;font-size:1.1rem">Place an order</h3>'
     +'<div class="frow"><label>Your name</label><select id="mo-who" onchange="toggleMerchGuest();renderMerchList()"><option value="">— Select your name —</option>'
       +grp('Members',perm)+grp('Casual',cas)+'<option value="guest">I\'m a guest</option></select></div>'
@@ -2587,10 +2599,21 @@ function renderMerchForm(){
     +'</div>'
     +'<div class="fgrid">'
       +'<div class="frow"><label>Type</label><select id="mo-type">'+merchOpts(MERCH_TYPES)+'</select></div>'
-      +'<div class="frow"><label>Size</label><select id="mo-size"><option value="">— Size —</option>'+merchOpts(MERCH_SIZES)+'</select></div>'
+      +'<div class="frow"><label>Size</label><select id="mo-size"><option value="">— Size —</option>'+merchSizeOpts()+'</select></div>'
     +'</div>'
     +'<div class="frow"><label>Quantity</label><select id="mo-qty">'+merchOpts(MERCH_QTYS)+'</select></div>'
     +'<button class="btn btn-lime" style="width:100%;justify-content:center" onclick="submitMerch()">Submit Order</button></div>';
+}
+function merchSponsorCard(){
+  var logo=escH(SPONSOR_LOGO), fb=SPONSOR_FB?escH(SPONSOR_FB):'';
+  var img='<img src="'+logo+'" alt="'+escH(SPONSOR_NAME)+' logo" style="max-width:120px;max-height:80px;object-fit:contain;background:#fff;border-radius:8px;padding:6px" onerror="this.style.display=\'none\'">';
+  return '<div class="rsvp-card"><div class="sec-lbl">Sponsored by</div>'
+    +'<div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap">'
+    +(fb?'<a href="'+fb+'" target="_blank" rel="noopener">'+img+'</a>':img)
+    +'<div><div style="font-family:Bebas Neue,cursive;font-size:1.3rem;letter-spacing:.05em;color:var(--accent)">'+escH(SPONSOR_NAME)+'</div>'
+    +'<div style="font-size:.85rem;margin-top:2px">Contact: <a href="tel:'+SPONSOR_PHONE.replace(/\s/g,'')+'" style="color:var(--accent)">'+escH(SPONSOR_PHONE)+'</a></div>'
+    +(fb?'<div style="font-size:.82rem;margin-top:4px"><a href="'+fb+'" target="_blank" rel="noopener" style="color:var(--accent)">👍 Visit their Facebook page</a></div>':'')
+    +'</div></div></div>';
 }
 function toggleMerchGuest(){
   document.getElementById('mo-guest-row').style.display=document.getElementById('mo-who').value==='guest'?'block':'none';
@@ -2721,7 +2744,7 @@ function editMerch(id){
   document.getElementById('me-name').value=o.shirt_name;
   document.getElementById('me-num').value=o.shirt_number;
   document.getElementById('me-type').innerHTML=merchOpts(MERCH_TYPES,o.shirt_type);
-  document.getElementById('me-size').innerHTML=merchOpts(MERCH_SIZES,o.size);
+  document.getElementById('me-size').innerHTML=merchSizeOpts(o.size);
   document.getElementById('me-qty').innerHTML=merchOpts(MERCH_QTYS,o.quantity);
   openModal('m-merch');
 }
@@ -2776,17 +2799,17 @@ async function exportMerch(){
     head.push('Ordered By');
     var aoa=[head];
     list.forEach(function(o,i){
-      var r=[i+1,o.shirt_name,String(o.shirt_number),o.shirt_type,o.size,o.quantity];
+      var r=[i+1,o.shirt_name,String(o.shirt_number),o.shirt_type,merchSizeLabel(o.size),o.quantity];
       r.push(o.orderer_name+(o.orderer_type==='guest'?' (guest)':''));
       aoa.push(r);
     });
     var ws=XLSX.utils.aoa_to_sheet(aoa);
-    ws['!cols']=[{wch:5},{wch:22},{wch:8},{wch:12},{wch:13},{wch:6},{wch:24}];
+    ws['!cols']=[{wch:5},{wch:22},{wch:8},{wch:12},{wch:22},{wch:6},{wch:24}];
     var sum=merchSummary(); var total=0;
     var sa=[['Type','Size','Total Qty']];
-    sum.forEach(function(s){sa.push([s.type,s.size,s.qty]);total+=s.qty;});
+    sum.forEach(function(s){sa.push([s.type,merchSizeLabel(s.size),s.qty]);total+=s.qty;});
     sa.push(['','TOTAL',total]);
-    var ws2=XLSX.utils.aoa_to_sheet(sa); ws2['!cols']=[{wch:12},{wch:13},{wch:10}];
+    var ws2=XLSX.utils.aoa_to_sheet(sa); ws2['!cols']=[{wch:12},{wch:22},{wch:10}];
     var wb=XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb,ws,'Order List');
     XLSX.utils.book_append_sheet(wb,ws2,'Size Summary');
