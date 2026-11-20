@@ -1610,7 +1610,170 @@ function _buildGuestRows(guestList, q) {
   }).join('');
 }
 
+// ── ALL-TIME FINANCE ──────────────────────────────────────────────────────
+function fA(n){ return (n < -0.004 ? '−' : '') + 'A$' + Math.abs(n).toFixed(2); }
+
+function setFinanceMode(m){ S.financeMode = m; renderFinance(); }
+
+function financeToggleHTML(mode){
+  return '<div class="phase-tabs" style="margin-bottom:14px">'
+    + '<button class="phase-tab' + (mode !== 'all' ? ' active' : '') + '" onclick="setFinanceMode(\'quarter\')">By Quarter</button>'
+    + '<button class="phase-tab' + (mode === 'all' ? ' active' : '') + '" onclick="setFinanceMode(\'all\')">All Time</button>'
+    + '</div>';
+}
+
+// Router: toggle between the quarterly view and the all-time view
 function renderFinance(){
+  var el = document.getElementById('finance-content');
+  if (S.financeMode === 'all') {
+    el.innerHTML = financeToggleHTML('all') + buildAllTimeFinance();
+    return;
+  }
+  renderFinanceQuarter();
+  el.innerHTML = financeToggleHTML('quarter') + el.innerHTML;
+}
+
+// Shuttle position: cash spent upfront vs. what has been allocated/sold/still in stock.
+// Uses the same all-time average cost-per-tube as the member allocation logic.
+function shuttleStats(){
+  var bought = 0, cost = 0;
+  S.shuttleCosts.forEach(function(c){ bought += (c.tubes || 0); cost += c.amount; });
+  var used = (S.shuttleUsage || []).reduce(function(a,u){ return a + (u.tubes_opened || 0); }, 0);
+  var sold = (S.shuttleSales || []).reduce(function(a,s){ return a + (s.tubes || 0); }, 0);
+  var cpt  = bought > 0 ? cost / bought : 0;
+  var stock = bought - used - sold;
+  return {
+    bought: bought, cost: cost, used: used, sold: sold, stock: stock, cpt: cpt,
+    usedCost: used * cpt, soldCost: sold * cpt, stockValue: Math.max(0, stock) * cpt
+  };
+}
+
+// Cash in / out per quarter (shuttle purchases shown when PAID, plus what was allocated on usage)
+function financeByQuarter(){
+  var m = {};
+  function row(q){ return m[q] || (m[q] = {q:q, fees:0, casual:0, sales:0, court:0, shuttle:0, alloc:0}); }
+  S.feePayments.forEach(function(p){ row(p.quarter).fees += p.amount; });
+  (S.casualPayments || []).forEach(function(p){
+    var q = p.quarter || (p.date ? dateToQuarter(p.date) : null);
+    if (q) row(q).casual += p.amount;
+  });
+  (S.shuttleSales || []).forEach(function(s){ row(dateToQuarter(s.date)).sales += s.amount; });
+  S.sessions.forEach(function(s){
+    var c = S.sessionCosts[s.id] || 0;
+    if (c) row(dateToQuarter(s.date)).court += c;
+  });
+  S.shuttleCosts.forEach(function(c){ row(dateToQuarter(c.date)).shuttle += c.amount; });
+  var st = shuttleStats();
+  (S.shuttleUsage || []).forEach(function(u){
+    row(dateToQuarter(u.date)).alloc += (u.tubes_opened || 0) * st.cpt;
+  });
+  return Object.keys(m).sort().map(function(k){ return m[k]; });
+}
+
+function buildAllTimeFinance(){
+  var sum = function(arr, f){ return arr.reduce(function(a,x){ return a + f(x); }, 0); };
+  var today  = new Date().toLocaleDateString('en-CA'); // local YYYY-MM-DD
+  var fees   = sum(S.feePayments, function(p){ return p.amount; });
+  var casual = sum(S.casualPayments || [], function(p){ return p.amount; });
+  var sales  = sum(S.shuttleSales || [], function(s){ return s.amount; });
+  var income = fees + casual + sales;
+
+  var court  = sum(Object.keys(S.sessionCosts || {}), function(k){ return S.sessionCosts[k] || 0; });
+  var courtUpcoming = sum(S.sessions.filter(function(s){ return s.date > today; }),
+                          function(s){ return S.sessionCosts[s.id] || 0; });
+  var st      = shuttleStats();
+  var cashOut = court + st.cost;
+  var pool    = poolBalance();
+  var net     = pool + st.stockValue;
+
+  var pastSessions = S.sessions.filter(function(s){ return s.date <= today; }).length;
+  var avgPerSession = pastSessions > 0 ? cashOut / pastSessions : 0;
+  var runway = avgPerSession > 0 ? pool / avgPerSession : null;
+
+  // Members: who owes / who holds credit (current balances)
+  var owe = 0, credit = 0;
+  S.members.forEach(function(m){
+    var b = m.type === 'permanent' ? memberRunningBalance(m) : casualBalance(m.id);
+    if (b < -0.005) owe += -b; else if (b > 0.005) credit += b;
+  });
+
+  var ai = feeAlert();
+  var alertHTML = '';
+  if (pool < 0) {
+    alertHTML = '<div class="alert-banner"><div class="ico">⚠️</div><div><strong>Pool is overdrawn by ' + fA(-pool) + '.</strong> Shuttle purchases are paid upfront, so fees need to be collected to cover them.</div></div>';
+  } else if (ai.alert) {
+    alertHTML = '<div class="alert-banner"><div class="ico">⚠️</div><div><strong>Time to collect fees!</strong> Pool balance <strong>' + fA(pool) + '</strong> — running low.</div></div>';
+  }
+
+  // Shuttle recovery bar: share of shuttle cash already recovered via usage allocation or sales
+  var recoveredPct = st.cost > 0 ? Math.max(0, Math.min(100, Math.round((st.usedCost + st.soldCost) / st.cost * 100))) : 0;
+  var stockColor = st.stock <= 3 ? 'var(--red)' : 'var(--accent)';
+
+  // Quarter breakdown
+  var qRows = financeByQuarter();
+  var tot = {fees:0, casual:0, sales:0, court:0, shuttle:0, alloc:0};
+  var qHTML = qRows.map(function(r){
+    var inn = r.fees + r.casual + r.sales, out = r.court + r.shuttle, n = inn - out;
+    Object.keys(tot).forEach(function(k){ tot[k] += r[k]; });
+    return '<tr><td style="white-space:nowrap">' + quarterLabel(r.q) + '</td>'
+      + '<td>' + fA(inn) + '</td><td>' + fA(r.court) + '</td><td>' + fA(r.shuttle) + '</td>'
+      + '<td class="' + (n >= 0 ? 'bal-pos' : 'bal-neg') + '">' + fA(n) + '</td>'
+      + '<td style="color:var(--muted)">' + fA(r.alloc) + '</td></tr>';
+  }).join('');
+  var tIn = tot.fees + tot.casual + tot.sales, tOut = tot.court + tot.shuttle, tNet = tIn - tOut;
+  qHTML += '<tr style="font-weight:700"><td>Total</td><td>' + fA(tIn) + '</td><td>' + fA(tot.court) + '</td><td>' + fA(tot.shuttle) + '</td>'
+    + '<td class="' + (tNet >= 0 ? 'bal-pos' : 'bal-neg') + '">' + fA(tNet) + '</td><td style="color:var(--muted)">' + fA(tot.alloc) + '</td></tr>';
+
+  return alertHTML
+
+    // Position
+    + '<div class="fin-card"><h3>📊 Overall Position (all time)</h3>'
+    +   '<div class="fin-grid">'
+    +     '<div class="fin-stat"><div class="num" style="color:var(--accent)">' + fA(income) + '</div><div class="lbl">Total Money In</div></div>'
+    +     '<div class="fin-stat"><div class="num" style="color:var(--accent)">' + fA(cashOut) + '</div><div class="lbl">Total Cash Out</div></div>'
+    +     '<div class="fin-stat"><div class="num" style="color:' + (pool >= 0 ? 'var(--accent)' : 'var(--red)') + '">' + fA(pool) + '</div><div class="lbl">Pool Balance (cash)</div></div>'
+    +     '<div class="fin-stat"><div class="num" style="color:var(--accent)">' + fA(net) + '</div><div class="lbl">Pool + Shuttle Stock</div></div>'
+    +   '</div>'
+    +   '<div style="font-size:.78rem;color:var(--muted);line-height:1.6">'
+    +     'In: perm fees <strong>' + fA(fees) + '</strong> · casual credits &amp; guests <strong>' + fA(casual) + '</strong> · tube sales <strong>' + fA(sales) + '</strong><br>'
+    +     'Out: court <strong>' + fA(court) + '</strong>' + (courtUpcoming > 0 ? ' (incl. ' + fA(courtUpcoming) + ' for upcoming sessions)' : '') + ' · shuttles bought <strong>' + fA(st.cost) + '</strong><br>'
+    +     'Avg cash spend per session: <strong>' + fA(avgPerSession) + '</strong>'
+    +     (runway !== null ? ' · Pool covers ≈ <strong>' + (runway < 0 ? 0 : runway).toFixed(1) + '</strong> sessions at that rate' : '')
+    +   '</div>'
+    + '</div>'
+
+    // Shuttle upfront vs allocated
+    + '<div class="fin-card"><h3>🪶 Shuttles — Paid Upfront vs Allocated</h3>'
+    +   '<div style="font-size:.73rem;color:var(--muted);margin-bottom:10px">Shuttles are paid for when bought, but charged to members only as tubes are used. The last line is spent cash not yet recovered from members.</div>'
+    +   '<table class="tbl"><thead><tr><th>Item</th><th style="text-align:center">Tubes</th><th style="text-align:right">Amount</th></tr></thead><tbody>'
+    +     '<tr><td>Bought (cash paid)</td><td style="text-align:center">' + st.bought + '</td><td style="text-align:right;font-weight:600">' + fA(st.cost) + '</td></tr>'
+    +     '<tr><td>Used — allocated to members</td><td style="text-align:center">' + st.used + '</td><td style="text-align:right">' + fA(st.usedCost) + '</td></tr>'
+    +     '<tr><td>Sold to other clubs <span style="color:var(--muted);font-size:.72rem">(cost basis; received ' + fA(sales) + ')</span></td><td style="text-align:center">' + st.sold + '</td><td style="text-align:right">' + fA(st.soldCost) + '</td></tr>'
+    +     '<tr style="font-weight:700"><td>In stock — paid, not yet allocated</td><td style="text-align:center;color:' + stockColor + '">' + st.stock + '</td><td style="text-align:right;color:' + stockColor + '">' + fA(st.stockValue) + '</td></tr>'
+    +   '</tbody></table>'
+    +   '<div style="margin:10px 0 6px;font-size:.75rem;color:var(--muted);display:flex;justify-content:space-between"><span>Shuttle spend recovered (used + sold)</span><span>' + recoveredPct + '%</span></div>'
+    +   '<div class="fill-bar" style="border-radius:6px"><div class="fill-bar-inner" style="width:' + recoveredPct + '%"></div></div>'
+    +   '<div style="margin-top:8px;font-size:.73rem;color:var(--muted)">Average cost per tube: <strong>' + fA(st.cpt) + '</strong> · <a onclick="showView(\'shuttles\',document.querySelector(\'.nav-tab[data-view=shuttles]\'))" style="color:var(--accent);cursor:pointer">Manage shuttles →</a></div>'
+    + '</div>'
+
+    // Members
+    + '<div class="fin-card"><h3>👥 Member Balances</h3>'
+    +   '<div class="fin-grid">'
+    +     '<div class="fin-stat"><div class="num" style="color:' + (owe > 0 ? 'var(--red)' : 'var(--accent)') + '">' + fA(owe) + '</div><div class="lbl">Members Owe</div></div>'
+    +     '<div class="fin-stat"><div class="num" style="color:var(--accent)">' + fA(credit) + '</div><div class="lbl">Held in Credit</div></div>'
+    +   '</div>'
+    +   '<div style="font-size:.73rem;color:var(--muted)">Based on each member\'s running balance (fees/credits paid minus allocated costs). Unpaid guest sessions are not included.</div>'
+    + '</div>'
+
+    // Quarter breakdown
+    + '<div class="fin-card"><h3>🗓️ Quarter by Quarter</h3>'
+    +   '<div style="overflow-x:auto"><table class="tbl"><thead><tr><th>Quarter</th><th>In</th><th>Court</th><th>Shuttles Bought</th><th>Net Cash</th><th>Shuttle Allocated</th></tr></thead>'
+    +   '<tbody>' + qHTML + '</tbody></table></div>'
+    +   '<div style="margin-top:8px;font-size:.73rem;color:var(--muted)">Net cash = in − court − shuttles bought. The total matches the Pool Balance above.</div>'
+    + '</div>';
+}
+
+function renderFinanceQuarter(){
   var el  = document.getElementById('finance-content');
   var q   = S.financeQuarter || currentQuarter();
   var qs  = availableQuarters();
@@ -1705,6 +1868,7 @@ function renderFinance(){
     +   '</div>'
     +   '<div style="font-size:.78rem;color:var(--muted)">Court: <strong>A$'+courtTotal.toFixed(2)+'</strong>'
     +     ' · Shuttle usage cost: <strong>A$'+shuttleTotal.toFixed(2)+'</strong>'
+    +     ' · Shuttles bought (cash out): <strong>A$'+shuttlePurchaseTotal.toFixed(2)+'</strong>'
     +     ' · <a onclick="showView(\'shuttles\',document.querySelector(\'.nav-tab[data-view=shuttles]\'))" style="color:var(--accent);cursor:pointer">Manage shuttles →</a>'
     +   '</div>'
     + '</div>'
