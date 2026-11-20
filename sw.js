@@ -1,6 +1,6 @@
 // ShuttleUp Service Worker — offline use + PWA install
 // Bump the number below whenever you deploy, so old caches are cleared.
-const CACHE = 'shuttleup-v7';
+const CACHE = 'shuttleup-v8';
 const ASSETS = [
   './index.html',
   './config.js',
